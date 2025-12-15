@@ -9,15 +9,17 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.CalendarToday
-import androidx.compose.material.icons.outlined.FolderOpen
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.Work
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Work
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -155,7 +157,7 @@ fun OnboardingScreen1(navController: NavHostController? = null) {
                             contentAlignment = Alignment.Center
                         ) {
                             androidx.compose.material3.Icon(
-                                imageVector = Icons.Outlined.Work,
+                                imageVector = Icons.Filled.Work,
                                 contentDescription = null,
                                 tint = DarkGreen,
                                 modifier = Modifier
@@ -167,21 +169,21 @@ fun OnboardingScreen1(navController: NavHostController? = null) {
 
                     // Triangle icons
                     TriangleIcon(
-                        icon = Icons.Outlined.CalendarToday,
+                        icon = Icons.Filled.CalendarToday,
                         background = DarkGreen,
                         offsetX = 0.dp,
                         offsetY = (-95).dp
                     )
 
                     TriangleIcon(
-                        icon = Icons.Outlined.FolderOpen,
+                        icon = Icons.Filled.FolderOpen,
                         background = AccentGreen,
                         offsetX = (-90).dp,
                         offsetY = 45.dp
                     )
 
                     TriangleIcon(
-                        icon = Icons.Outlined.People,
+                        icon = Icons.Filled.People,
                         background = AccentOrange,
                         offsetX = 90.dp,
                         offsetY = 45.dp

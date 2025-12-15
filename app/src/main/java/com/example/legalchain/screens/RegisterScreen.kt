@@ -1,6 +1,7 @@
 package com.example.legalchain.screens
 
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -13,22 +14,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.*
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CheckboxDefaults
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -37,8 +29,10 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import java.text.DecimalFormat
 
 private val DarkGreen = Color(0xFF004D40)
+private val ThickBlack = Color(0xFF000000) // pure black for bold labels
 
 // simple country → states data
 private val countries = listOf("India", "United States", "United Kingdom")
@@ -60,6 +54,7 @@ private enum class RegisterRole { LAWYER, CLIENT }
 
 @Composable
 fun RegisterScreen(navController: NavHostController? = null) {
+    val context = LocalContext.current
 
     // -------- STATE ----------
     var role by remember { mutableStateOf<RegisterRole?>(null) }
@@ -84,21 +79,63 @@ fun RegisterScreen(navController: NavHostController? = null) {
     var address by remember { mutableStateOf("") }
     var barId by remember { mutableStateOf("") }
 
+    var selectedFileUri by remember { mutableStateOf<Uri?>(null) }
     var selectedFileName by remember { mutableStateOf<String?>(null) }
+    var selectedFileSize by remember { mutableStateOf<Long?>(null) } // bytes
+    var selectedFileTooLarge by remember { mutableStateOf(false) }
+
     var isSubmitted by remember { mutableStateOf(false) }
+
+    // file size limit
+    val maxBytes = 5L * 1024L * 1024L // 5 MB
 
     // launcher for picking a document
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri: Uri? ->
-        selectedFileName = uri?.lastPathSegment ?: uri?.toString()
+        if (uri == null) return@rememberLauncherForActivityResult
+
+        // read file name and size safely
+        try {
+            val resolver = context.contentResolver
+            val afd = resolver.openAssetFileDescriptor(uri, "r")
+            val size = afd?.length ?: -1L
+            afd?.close()
+
+            // Fallback: try openInputStream to estimate
+            val finalSize = if (size <= 0L) {
+                resolver.openInputStream(uri)?.use { it.available().toLong() } ?: -1L
+            } else size
+
+            selectedFileUri = uri
+            selectedFileSize = if (finalSize > 0) finalSize else null
+            // Try to obtain displayName
+            val name = queryFileName(resolver = context.contentResolver, uri = uri) ?: uri.lastPathSegment
+            selectedFileName = name
+
+            if (selectedFileSize != null && selectedFileSize!! > maxBytes) {
+                selectedFileTooLarge = true
+                Toast.makeText(context, "File too large. Max 5 MB allowed.", Toast.LENGTH_LONG).show()
+            } else {
+                selectedFileTooLarge = false
+            }
+        } catch (t: Throwable) {
+            selectedFileUri = uri
+            selectedFileName = uri.lastPathSegment
+            selectedFileSize = null
+            selectedFileTooLarge = false
+            Toast.makeText(context, "Could not read selected file details.", Toast.LENGTH_SHORT).show()
+        }
     }
 
     // after lawyer submits -> verification pending screen
     if (isSubmitted && role == RegisterRole.LAWYER) {
-        VerificationPendingScreen(
-            onBackToLogin = { navController?.popBackStack() }
-        )
+        VerificationPendingScreen(onBackToLogin = {
+            navController?.navigate("login") {
+                popUpTo("register") { inclusive = true }
+                launchSingleTop = true
+            }
+        })
         return
     }
 
@@ -106,13 +143,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // HEADER
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(200.dp) // tightened for neater spacing
                 .background(
                     brush = Brush.verticalGradient(
                         listOf(
@@ -125,7 +162,7 @@ fun RegisterScreen(navController: NavHostController? = null) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 40.dp, start = 20.dp, end = 20.dp),
+                    .padding(top = 28.dp, start = 20.dp, end = 20.dp),
                 horizontalAlignment = Alignment.Start
             ) {
                 // Back
@@ -133,54 +170,57 @@ fun RegisterScreen(navController: NavHostController? = null) {
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clickable { navController?.popBackStack() }
+                        .padding(6.dp)
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.95f),
+                        modifier = Modifier.size(26.dp)
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Back",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 14.sp
+                        color = Color.White.copy(alpha = 0.95f),
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
 
                     // Logo
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
-                            .background(Color.White, RoundedCornerShape(16.dp)),
+                            .size(68.dp)
+                            .background(Color.White, RoundedCornerShape(18.dp)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(text = "⚖️", fontSize = 24.sp)
+                        Text(text = "⚖️", fontSize = 30.sp)
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
+                        // Header text WHITE as requested
                         Text(
                             text = "LegalChain",
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "Create Account",
-                            color = Color.White.copy(alpha = 0.9f),
+                            color = Color.White.copy(alpha = 0.95f),
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )
                         Text(
                             text = "Join us to manage your legal matters",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 12.sp
+                            color = Color.White.copy(alpha = 0.8f),
+                            fontSize = 13.sp
                         )
                     }
                 }
@@ -191,10 +231,10 @@ fun RegisterScreen(navController: NavHostController? = null) {
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 160.dp),
-            color = Color.White,
+                .padding(top = 170.dp),
+            color = MaterialTheme.colorScheme.surface,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-            shadowElevation = 8.dp
+            tonalElevation = 6.dp
         ) {
             Column(
                 modifier = Modifier
@@ -209,9 +249,9 @@ fun RegisterScreen(navController: NavHostController? = null) {
 
                     Text(
                         text = "I am a",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827)
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold, // thicker text
+                        color = ThickBlack
                     )
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -220,14 +260,14 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         onClick = { showRoleDropdown = !showRoleDropdown },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                            .height(64.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
-                        contentPadding = PaddingValues(horizontal = 16.dp)
+                        contentPadding = PaddingValues(horizontal = 18.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -243,24 +283,26 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                 Icon(
                                     imageVector = icon,
                                     contentDescription = null,
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(20.dp)
+                                    tint = DarkGreen,
+                                    modifier = Modifier.size(26.dp)
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = when (role) {
                                         RegisterRole.LAWYER -> "Lawyer / Advocate"
                                         RegisterRole.CLIENT -> "Client"
                                         null -> "Select your role"
                                     },
-                                    fontSize = 15.sp
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold, // thicker selection text
+                                    color = ThickBlack
                                 )
                             }
 
                             Icon(
                                 imageVector = Icons.Outlined.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = Color.Black
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -269,10 +311,10 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(top = 82.dp),
+                                .padding(top = 90.dp),
                             shape = RoundedCornerShape(18.dp),
-                            shadowElevation = 8.dp,
-                            color = Color.White
+                            tonalElevation = 8.dp,
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Column {
                                 RoleDropdownItem(
@@ -283,7 +325,12 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                     role = RegisterRole.LAWYER
                                     showRoleDropdown = false
                                 }
-                                HorizontalDivider(color = Color(0xFFE5E7EB))
+                                // thicker black divider
+                                HorizontalDivider(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    thickness = 2.dp,
+                                    color = ThickBlack
+                                )
                                 RoleDropdownItem(
                                     title = "Client",
                                     subtitle = "Track your legal matters",
@@ -297,31 +344,32 @@ fun RegisterScreen(navController: NavHostController? = null) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
-                // common field colors (black text & icons)
+                // common field colors (use theme)
                 val fieldColors = OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = Color.Black,
-                    unfocusedTextColor = Color.Black,
-                    focusedLabelColor = Color.Black,
-                    unfocusedLabelColor = Color.Black,
-                    focusedLeadingIconColor = Color.Black,
-                    unfocusedLeadingIconColor = Color.Black,
-                    focusedTrailingIconColor = Color.Black,
-                    unfocusedTrailingIconColor = Color.Black,
-                    cursorColor = Color.Black
+                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f),
+                    focusedLabelColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    focusedLeadingIconColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedLeadingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    focusedTrailingIconColor = MaterialTheme.colorScheme.onSurface,
+                    unfocusedTrailingIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                    cursorColor = MaterialTheme.colorScheme.primary
                 )
 
                 // ---------- BASE FIELDS ----------
                 OutlinedTextField(
                     value = fullName,
                     onValueChange = { fullName = it },
-                    label = { Text("Full Name") },
-                    placeholder = { Text("Enter your full name") },
+                    label = { Text("Full Name", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
+                    placeholder = { Text("Enter your full name", fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Person,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -335,12 +383,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
                 OutlinedTextField(
                     value = email,
                     onValueChange = { email = it },
-                    label = { Text("Email Address") },
-                    placeholder = { Text("Enter your email") },
+                    label = { Text("Email Address", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
+                    placeholder = { Text("Enter your email", fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Email,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -354,19 +403,19 @@ fun RegisterScreen(navController: NavHostController? = null) {
                 OutlinedTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
-                    placeholder = { Text("Create a password") },
+                    label = { Text("Password", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
+                    placeholder = { Text("Create a password", fontSize = 14.sp) },
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Lock,
-                            contentDescription = null
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
                         )
                     },
                     trailingIcon = {
                         Icon(
                             imageVector = if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
                             contentDescription = "Toggle password",
-                            tint = Color.Black,
                             modifier = Modifier
                                 .size(22.dp)
                                 .clickable { showPassword = !showPassword }
@@ -386,21 +435,21 @@ fun RegisterScreen(navController: NavHostController? = null) {
                 Text(
                     text = "At least 8 characters with numbers and symbols",
                     fontSize = 12.sp,
-                    color = Color(0xFF6B7280),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 4.dp)
+                        .padding(top = 6.dp)
                 )
 
                 // ---------- LAWYER EXTRA FIELDS ----------
                 if (role == RegisterRole.LAWYER) {
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(18.dp))
 
                     Text(
                         text = "Professional Details",
                         fontSize = 16.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = Color(0xFF111827),
+                        fontWeight = FontWeight.Bold, // thicker heading
+                        color = ThickBlack,
                         modifier = Modifier.align(Alignment.Start)
                     )
 
@@ -409,12 +458,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
                     OutlinedTextField(
                         value = barId,
                         onValueChange = { barId = it },
-                        label = { Text("Bar Council ID") },
-                        placeholder = { Text("e.g. MAH/1234/2020") },
+                        label = { Text("Bar Council ID", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
+                        placeholder = { Text("e.g. MAH/1234/2020", fontSize = 14.sp) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.Description,
-                                contentDescription = null
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -423,14 +473,14 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         shape = RoundedCornerShape(16.dp)
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // COUNTRY DROPDOWN
                     Text(
                         text = "Country",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827),
+                        fontWeight = FontWeight.Bold,
+                        color = ThickBlack,
                         modifier = Modifier.align(Alignment.Start)
                     )
 
@@ -440,12 +490,12 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         onClick = { showCountryDropdown = !showCountryDropdown },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                            .height(56.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
@@ -458,19 +508,21 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                 Icon(
                                     imageVector = Icons.Outlined.Public,
                                     contentDescription = null,
-                                    tint = Color.Black,
+                                    tint = DarkGreen,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = if (country.isBlank()) "Select country" else country,
-                                    fontSize = 14.sp
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = ThickBlack
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Outlined.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = Color.Black
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
@@ -481,8 +533,8 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
                             shape = RoundedCornerShape(16.dp),
-                            shadowElevation = 8.dp,
-                            color = Color.White
+                            tonalElevation = 8.dp,
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Column {
                                 countries.forEach { c ->
@@ -501,13 +553,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                             imageVector = Icons.Outlined.Public,
                                             contentDescription = null,
                                             tint = DarkGreen,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = c,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF111827)
+                                            fontSize = 15.sp,
+                                            color = ThickBlack
                                         )
                                     }
                                 }
@@ -515,14 +567,14 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     // STATE DROPDOWN (enabled only when country chosen)
                     Text(
                         text = "State",
                         fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827),
+                        fontWeight = FontWeight.Bold,
+                        color = ThickBlack,
                         modifier = Modifier.align(Alignment.Start)
                     )
 
@@ -535,14 +587,14 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         enabled = country.isNotBlank(),
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(52.dp),
-                        border = BorderStroke(1.dp, Color(0xFFD1D5DB)),
+                            .height(56.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
                         shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.outlinedButtonColors(
-                            containerColor = Color.White,
-                            contentColor = Color.Black,
-                            disabledContainerColor = Color(0xFFF3F4F6),
-                            disabledContentColor = Color(0xFF9CA3AF)
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            disabledContainerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.6f),
+                            disabledContentColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         ),
                         contentPadding = PaddingValues(horizontal = 16.dp)
                     ) {
@@ -555,7 +607,7 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                 Icon(
                                     imageVector = Icons.Outlined.LocationOn,
                                     contentDescription = null,
-                                    tint = if (country.isNotBlank()) Color.Black else Color(0xFF9CA3AF),
+                                    tint = if (country.isNotBlank()) DarkGreen else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -565,13 +617,15 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                         lawyerState.isBlank() -> "Select state"
                                         else -> lawyerState
                                     },
-                                    fontSize = 14.sp
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (country.isNotBlank()) ThickBlack else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                                 )
                             }
                             Icon(
                                 imageVector = Icons.Outlined.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = if (country.isNotBlank()) Color.Black else Color(0xFF9CA3AF)
+                                tint = if (country.isNotBlank()) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
                         }
                     }
@@ -582,8 +636,8 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                 .fillMaxWidth()
                                 .padding(top = 8.dp),
                             shape = RoundedCornerShape(16.dp),
-                            shadowElevation = 8.dp,
-                            color = Color.White
+                            tonalElevation = 8.dp,
+                            color = MaterialTheme.colorScheme.surface
                         ) {
                             Column {
                                 availableStates.forEach { s ->
@@ -601,13 +655,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
                                             imageVector = Icons.Outlined.LocationOn,
                                             contentDescription = null,
                                             tint = DarkGreen,
-                                            modifier = Modifier.size(18.dp)
+                                            modifier = Modifier.size(20.dp)
                                         )
                                         Spacer(modifier = Modifier.width(8.dp))
                                         Text(
                                             text = s,
-                                            fontSize = 14.sp,
-                                            color = Color(0xFF111827)
+                                            fontSize = 15.sp,
+                                            color = ThickBlack
                                         )
                                     }
                                 }
@@ -615,12 +669,12 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
                         value = district,
                         onValueChange = { district = it },
-                        label = { Text("District") },
+                        label = { Text("District", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         colors = fieldColors,
@@ -632,12 +686,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
                     OutlinedTextField(
                         value = address,
                         onValueChange = { address = it },
-                        label = { Text("Office Address") },
-                        placeholder = { Text("Full office address") },
+                        label = { Text("Office Address", fontSize = 15.sp, color = ThickBlack, fontWeight = FontWeight.Bold) },
+                        placeholder = { Text("Full office address", fontSize = 14.sp) },
                         leadingIcon = {
                             Icon(
                                 imageVector = Icons.Outlined.LocationOn,
-                                contentDescription = null
+                                contentDescription = null,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -649,13 +704,13 @@ fun RegisterScreen(navController: NavHostController? = null) {
 
                     Text(
                         text = "Proof Documents",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color(0xFF111827),
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = ThickBlack,
                         modifier = Modifier.align(Alignment.Start)
                     )
 
-                    Spacer(modifier = Modifier.height(6.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     Surface(
                         modifier = Modifier
@@ -667,47 +722,64 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         shape = RoundedCornerShape(16.dp),
                         border = BorderStroke(
                             width = 2.dp,
-                            color = Color(0xFFD1D5DB)
+                            color = MaterialTheme.colorScheme.outline
                         ),
-                        color = Color(0xFFF9FAFB)
+                        color = MaterialTheme.colorScheme.surfaceVariant
                     ) {
                         Column(
                             modifier = Modifier
-                                .padding(vertical = 14.dp, horizontal = 12.dp),
+                                .padding(vertical = 16.dp, horizontal = 12.dp),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Icon(
                                 imageVector = Icons.Outlined.CloudUpload,
                                 contentDescription = null,
                                 tint = DarkGreen,
-                                modifier = Modifier.size(28.dp)
+                                modifier = Modifier.size(30.dp)
                             )
-                            Spacer(modifier = Modifier.height(6.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
                             Text(
                                 text = "Upload ID & Bar Certificate",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF111827)
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = ThickBlack
                             )
                             Text(
-                                text = "PDF, JPG up to 5MB",
-                                fontSize = 12.sp,
-                                color = Color(0xFF6B7280)
+                                text = "PDF, JPG up to 5 MB",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                             )
 
-                            selectedFileName?.let {
-                                Spacer(modifier = Modifier.height(6.dp))
+                            selectedFileName?.let { name ->
+                                Spacer(modifier = Modifier.height(10.dp))
                                 Text(
-                                    text = "Selected: $it",
-                                    fontSize = 11.sp,
-                                    color = DarkGreen
+                                    text = "Selected: $name",
+                                    fontSize = 13.sp,
+                                    color = if (selectedFileTooLarge) Color.Red else ThickBlack,
+                                    textAlign = TextAlign.Center
                                 )
+                                selectedFileSize?.let { size ->
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = formatBytes(size),
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                    )
+                                }
+                                if (selectedFileTooLarge) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "File exceeds 5 MB limit — please choose a smaller file.",
+                                        fontSize = 12.sp,
+                                        color = Color.Red
+                                    )
+                                }
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 // ---------- TERMS ----------
                 Row(
@@ -721,19 +793,19 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         onCheckedChange = { agreedTerms = it },
                         colors = CheckboxDefaults.colors(
                             checkedColor = DarkGreen,
-                            uncheckedColor = Color(0xFF9CA3AF),
+                            uncheckedColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                             checkmarkColor = Color.White
                         )
                     )
 
-                    Spacer(modifier = Modifier.width(8.dp))
+                    Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
                         text = buildAnnotatedString {
                             append("I agree to the ")
                             withStyle(
                                 SpanStyle(
-                                    color = DarkGreen,
+                                    color = ThickBlack,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             ) {
@@ -742,49 +814,63 @@ fun RegisterScreen(navController: NavHostController? = null) {
                             append(" and ")
                             withStyle(
                                 SpanStyle(
-                                    color = DarkGreen,
+                                    color = ThickBlack,
                                     fontWeight = FontWeight.SemiBold
                                 )
                             ) {
                                 append("Privacy Policy")
                             }
                         },
-                        fontSize = 13.sp,
-                        color = Color(0xFF111827),
+                        fontSize = 14.sp,
+                        color = ThickBlack.copy(alpha = 0.95f),
                         modifier = Modifier.weight(1f),
                         textAlign = TextAlign.Start
                     )
                 }
 
                 // ---------- MAIN BUTTON ----------
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Button(
                     onClick = {
                         if (role == RegisterRole.LAWYER) {
+                            // require file uploaded and not too large
+                            if (selectedFileUri == null) {
+                                Toast.makeText(context, "Please upload proof documents", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            if (selectedFileTooLarge) {
+                                Toast.makeText(context, "Selected file is too large", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            // mark submitted and navigate to login, removing register from back stack
                             isSubmitted = true
+                            navController?.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
                         } else {
-                            // for now just go back to login for client
-                            navController?.popBackStack()
+                            // navigate to login for client and remove register from back stack
+                            navController?.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
                         }
                     },
-                    enabled = agreedTerms && role != null,
+                    enabled = agreedTerms && role != null && !(role == RegisterRole.LAWYER && selectedFileTooLarge),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(50.dp),
+                        .height(56.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = DarkGreen,
                         contentColor = Color.White,
-                        disabledContainerColor = DarkGreen.copy(alpha = 0.4f),
+                        disabledContainerColor = DarkGreen.copy(alpha = 0.5f),
                         disabledContentColor = Color.White
                     ),
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Text(
-                        text = if (role == RegisterRole.LAWYER)
-                            "Submit for Verification"
-                        else
-                            "Create Account",
+                        text = if (role == RegisterRole.LAWYER) "Submit for Verification" else "Create Account",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -797,7 +883,7 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         append("Already have an account? ")
                         withStyle(
                             style = SpanStyle(
-                                color = DarkGreen,
+                                color = ThickBlack,
                                 fontWeight = FontWeight.SemiBold
                             )
                         ) {
@@ -805,17 +891,51 @@ fun RegisterScreen(navController: NavHostController? = null) {
                         }
                     },
                     fontSize = 14.sp,
-                    color = Color(0xFF4B5563),
+                    color = ThickBlack.copy(alpha = 0.8f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { navController?.popBackStack() }
+                        .clickable {
+                            navController?.navigate("login") {
+                                popUpTo("register") { inclusive = true }
+                                launchSingleTop = true
+                            }
+                        }
                 )
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(12.dp))
             }
         }
     }
+}
+
+/**
+ * Safely query display name for Uri using contentResolver (may return null)
+ */
+private fun queryFileName(resolver: android.content.ContentResolver, uri: Uri): String? {
+    val projection = arrayOf(android.provider.OpenableColumns.DISPLAY_NAME)
+    var result: String? = null
+    resolver.query(uri, projection, null, null, null)?.use { cursor ->
+        if (cursor.moveToFirst()) {
+            val idx = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+            if (idx >= 0) result = cursor.getString(idx)
+        }
+    }
+    return result
+}
+
+/** Simple human-readable bytes */
+private fun formatBytes(bytes: Long): String {
+    if (bytes <= 0) return "0 B"
+    val units = arrayOf("B", "KB", "MB", "GB")
+    var value = bytes.toDouble()
+    var i = 0
+    while (value >= 1024 && i < units.lastIndex) {
+        value /= 1024
+        i++
+    }
+    val df = DecimalFormat("#.##")
+    return "${df.format(value)} ${units[i]}"
 }
 
 @Composable
@@ -836,20 +956,20 @@ private fun RoleDropdownItem(
             imageVector = icon,
             contentDescription = null,
             tint = DarkGreen,
-            modifier = Modifier.size(22.dp)
+            modifier = Modifier.size(24.dp)
         )
-        Spacer(modifier = Modifier.width(10.dp))
+        Spacer(modifier = Modifier.width(12.dp))
         Column {
             Text(
                 text = title,
-                fontSize = 15.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFF111827)
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold, // thicker title
+                color = ThickBlack
             )
             Text(
                 text = subtitle,
-                fontSize = 12.sp,
-                color = Color(0xFF6B7280)
+                fontSize = 13.sp,
+                color = ThickBlack.copy(alpha = 0.8f)
             )
         }
     }
@@ -859,7 +979,7 @@ private fun RoleDropdownItem(
 private fun VerificationPendingScreen(onBackToLogin: () -> Unit) {
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = Color.White
+        color = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -871,14 +991,14 @@ private fun VerificationPendingScreen(onBackToLogin: () -> Unit) {
 
             Box(
                 modifier = Modifier
-                    .size(96.dp)
-                    .background(Color(0xFFFFF3CD), RoundedCornerShape(48.dp)),
+                    .size(110.dp)
+                    .background(MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f), RoundedCornerShape(48.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Schedule,
                     contentDescription = null,
-                    tint = Color(0xFFB45309),
+                    tint = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier.size(44.dp)
                 )
             }
@@ -889,15 +1009,15 @@ private fun VerificationPendingScreen(onBackToLogin: () -> Unit) {
                 text = "Verification Pending",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF111827)
+                color = ThickBlack
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
                 text = "Thank you for registering. Your profile and documents are currently under review by our team. This process typically takes 24–48 hours.",
-                fontSize = 14.sp,
-                color = Color(0xFF4B5563),
+                fontSize = 15.sp,
+                color = ThickBlack.copy(alpha = 0.8f),
                 textAlign = TextAlign.Center
             )
 
@@ -906,7 +1026,7 @@ private fun VerificationPendingScreen(onBackToLogin: () -> Unit) {
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                color = Color(0xFFF9FAFB)
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
                 Column(
                     modifier = Modifier.padding(16.dp),
@@ -924,9 +1044,9 @@ private fun VerificationPendingScreen(onBackToLogin: () -> Unit) {
                 onClick = onBackToLogin,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(50.dp),
+                    .height(52.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = DarkGreen
                 ),
                 border = BorderStroke(1.dp, DarkGreen),
@@ -956,8 +1076,8 @@ private fun StepRow(text: String) {
         Spacer(modifier = Modifier.width(8.dp))
         Text(
             text = text,
-            fontSize = 13.sp,
-            color = Color(0xFF374151)
+            fontSize = 14.sp,
+            color = ThickBlack
         )
     }
 }

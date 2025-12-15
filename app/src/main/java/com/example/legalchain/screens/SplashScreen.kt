@@ -9,8 +9,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.VerifiedUser
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import kotlinx.coroutines.delay
 
+// ✔️ Dark Green Brand Color
 private val DarkGreen = Color(0xFF004D40)
 
 @Composable
@@ -34,8 +35,12 @@ fun SplashScreen(navController: NavHostController) {
 
     val rotation = remember { Animatable(0f) }
 
+    // ✔️ Force splash background = DARK GREEN always
+    val bg = DarkGreen
+    val onBg = Color.White
+    val subtleOnBg = Color.White.copy(alpha = 0.15f)
+
     LaunchedEffect(Unit) {
-        // 2 full rotations (0 → 720 degrees)
         rotation.animateTo(
             targetValue = 720f,
             animationSpec = tween(
@@ -43,9 +48,8 @@ fun SplashScreen(navController: NavHostController) {
                 easing = LinearEasing
             )
         )
-        // small delay if you want
         delay(300)
-        // navigate to onboarding1 screen
+
         navController.navigate("onboarding1") {
             popUpTo("splash") { inclusive = true }
         }
@@ -54,85 +58,76 @@ fun SplashScreen(navController: NavHostController) {
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(DarkGreen),
+            .background(bg),
         contentAlignment = Alignment.Center
     ) {
 
-        // Background circular pattern
+        // Soft circular decorative rings
         Box(modifier = Modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .offset(x = 40.dp, y = 80.dp)
                     .size(128.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .border(1.dp, subtleOnBg, CircleShape)
             )
             Box(
                 modifier = Modifier
                     .offset(x = 260.dp, y = 160.dp)
                     .size(88.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .border(1.dp, subtleOnBg, CircleShape)
             )
             Box(
                 modifier = Modifier
                     .offset(x = 80.dp, y = 460.dp)
                     .size(96.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .border(1.dp, subtleOnBg, CircleShape)
             )
             Box(
                 modifier = Modifier
                     .offset(x = 220.dp, y = 520.dp)
                     .size(72.dp)
-                    .border(1.dp, Color.White.copy(alpha = 0.15f), CircleShape)
+                    .border(1.dp, subtleOnBg, CircleShape)
             )
         }
 
-        // 🔽 push logo+text slightly down so it feels centered better
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
             modifier = Modifier
                 .align(Alignment.Center)
-                .padding(top = 40.dp)   // <-- move the whole block a bit down
+                .padding(top = 40.dp)
         ) {
 
-            // Rotating logo card
+            // Rotating Logo Tile
             Box(
                 modifier = Modifier
                     .size(112.dp)
-                    .graphicsLayer {
-                        rotationZ = rotation.value
-                    }
+                    .graphicsLayer { rotationZ = rotation.value }
                     .background(Color.White, RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                Box {
+                Text(
+                    text = "⚖️",
+                    fontSize = 42.sp,
+                    color = DarkGreen,
+                    fontWeight = FontWeight.Bold
+                )
 
-                    // ⚖️ Emoji as court symbol in middle
-                    Text(
-                        text = "⚖️",
-                        fontSize = 42.sp,
-                        color = DarkGreen,
-                        modifier = Modifier.align(Alignment.Center),
-                        fontWeight = FontWeight.Bold
-                    )
-
-                    // Sparkle badge
-                    Box(
-                        modifier = Modifier
-                            .size(20.dp)
-                            .background(
-                                color = MaterialTheme.colorScheme.secondary,
-                                shape = CircleShape
-                            )
-                            .align(Alignment.TopEnd),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Outlined.AutoAwesome,
-                            contentDescription = "Sparkle",
-                            tint = Color.White,
-                            modifier = Modifier.size(12.dp)
+                Box(
+                    modifier = Modifier
+                        .size(20.dp)
+                        .background(
+                            color = Color(0xFF26A69A), // mint green highlight
+                            shape = CircleShape
                         )
-                    }
+                        .align(Alignment.TopEnd),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.AutoAwesome,
+                        contentDescription = "Sparkle",
+                        tint = Color.White,
+                        modifier = Modifier.size(12.dp)
+                    )
                 }
             }
 
@@ -141,7 +136,7 @@ fun SplashScreen(navController: NavHostController) {
             Text(
                 text = "LegalChain",
                 style = MaterialTheme.typography.headlineLarge,
-                color = Color.White
+                color = onBg
             )
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -149,23 +144,23 @@ fun SplashScreen(navController: NavHostController) {
             Text(
                 text = "AI-Powered Legal Management",
                 style = MaterialTheme.typography.titleMedium,
-                color = Color.White.copy(alpha = 0.8f)
+                color = onBg.copy(alpha = 0.85f)
             )
 
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
-                    imageVector = Icons.Outlined.VerifiedUser,
+                    imageVector = Icons.Default.VerifiedUser,
                     contentDescription = "Secure",
-                    tint = Color.White.copy(alpha = 0.7f),
+                    tint = onBg.copy(alpha = 0.85f),
                     modifier = Modifier.size(18.dp)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = "Secure • Smart • Simple",
                     style = MaterialTheme.typography.bodySmall,
-                    color = Color.White.copy(alpha = 0.7f)
+                    color = onBg.copy(alpha = 0.85f)
                 )
             }
         }
@@ -173,7 +168,7 @@ fun SplashScreen(navController: NavHostController) {
         Text(
             text = "Version 1.0.0",
             style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.4f),
+            color = onBg.copy(alpha = 0.4f),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(bottom = 24.dp)
