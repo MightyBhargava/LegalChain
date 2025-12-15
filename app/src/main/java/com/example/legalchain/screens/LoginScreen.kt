@@ -1,17 +1,18 @@
 package com.example.legalchain.screens
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.ArrowBack
-import androidx.compose.material.icons.outlined.Email
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.PhoneAndroid
-import androidx.compose.material.icons.outlined.Visibility
-import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -26,6 +27,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -34,6 +36,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 
 private val DarkGreenLogin = Color(0xFF004D40)
 
@@ -42,6 +47,7 @@ fun LoginScreen(
     navController: NavHostController? = null,
     isLawyer: Boolean = false
 ) {
+    val context = LocalContext.current
     val headerColor = DarkGreenLogin   // always dark green
 
     var loginMethod by remember { mutableStateOf(LoginMethod.EMAIL) }
@@ -60,11 +66,11 @@ fun LoginScreen(
             .background(Color.White)
     ) {
 
-        // HEADER AREA
+        // HEADER AREA (bigger, dark green)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(220.dp)
+                .height(240.dp) // slightly taller header
                 .background(
                     brush = Brush.verticalGradient(
                         listOf(
@@ -77,62 +83,65 @@ fun LoginScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(top = 40.dp, start = 20.dp, end = 20.dp),
+                    .padding(top = 44.dp, start = 20.dp, end = 20.dp),
                 horizontalAlignment = Alignment.Start
             ) {
-                // Back
+                // Back (larger touch target + text)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .clickable {
                             navController?.popBackStack()
                         }
+                        .padding(6.dp) // increased hit area
                 ) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color.White.copy(alpha = 0.9f),
-                        modifier = Modifier.size(20.dp)
+                        tint = Color.White.copy(alpha = 0.95f),
+                        modifier = Modifier.size(22.dp) // increased icon size
                     )
-                    Spacer(modifier = Modifier.width(4.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Back",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 14.sp
+                        color = Color.White.copy(alpha = 0.95f),
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Medium
                     )
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // logo box – ONLY justice icon now
+                    // logo box – bigger
                     Box(
                         modifier = Modifier
-                            .size(52.dp)
-                            .background(Color.White, RoundedCornerShape(16.dp)),
+                            .size(64.dp)
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(Color.White),
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "⚖️",
-                            fontSize = 24.sp
+                            fontSize = 30.sp
                         )
                     }
 
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(14.dp))
 
                     Column {
                         Text(
                             text = if (isLawyer) "Lawyer Login" else "Client Login",
                             color = Color.White,
-                            fontSize = 22.sp,
+                            fontSize = 26.sp, // larger heading
                             fontWeight = FontWeight.Bold
                         )
                         Text(
                             text = "LegalChain",
-                            color = Color.White.copy(alpha = 0.7f),
-                            fontSize = 11.sp,
+                            color = Color.White.copy(alpha = 0.85f),
+                            fontSize = 13.sp,
                             letterSpacing = 2.sp
                         )
                     }
@@ -144,7 +153,7 @@ fun LoginScreen(
         Surface(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = 160.dp),
+                .padding(top = 200.dp),
             color = Color.White,
             shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
             shadowElevation = 8.dp
@@ -156,36 +165,36 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                // Toggle: Email / Mobile
+                // Toggle: Email / Mobile (larger icons + text)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFFF3F4F6), RoundedCornerShape(16.dp))
-                        .padding(4.dp)
+                        .padding(6.dp)
                 ) {
                     ToggleChip(
                         selected = loginMethod == LoginMethod.EMAIL,
                         onClick = { loginMethod = LoginMethod.EMAIL },
                         label = "Email",
-                        icon = Icons.Outlined.Email
+                        icon = Icons.Default.Email
                     )
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
                     ToggleChip(
                         selected = loginMethod == LoginMethod.MOBILE,
                         onClick = { loginMethod = LoginMethod.MOBILE },
                         label = "Mobile",
-                        icon = Icons.Outlined.PhoneAndroid
+                        icon = Icons.Default.PhoneAndroid
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
 
-                    // Common text field colors: pure black text & icons
+                    // Common text field colors: larger text
                     val fieldColors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = Color.Black,
                         unfocusedTextColor = Color.Black,
@@ -202,57 +211,62 @@ fun LoginScreen(
                         OutlinedTextField(
                             value = email,
                             onValueChange = { email = it },
-                            label = { Text("Email Address") },
-                            placeholder = { Text("Enter your email", color = Color.Black.copy(alpha = 0.6f)) },
+                            label = { Text("Email Address", fontSize = 16.sp) },
+                            placeholder = { Text("Enter your email", color = Color.Black.copy(alpha = 0.6f), fontSize = 15.sp) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Outlined.Email,
+                                    imageVector = Icons.Default.Email,
                                     contentDescription = null,
-                                    tint = Color.Black
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            colors = fieldColors
+                            colors = fieldColors,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp)
                         )
                     } else {
                         OutlinedTextField(
                             value = mobile,
                             onValueChange = { mobile = it },
-                            label = { Text("Mobile Number") },
-                            placeholder = { Text("+91 Enter mobile number", color = Color.Black.copy(alpha = 0.6f)) },
+                            label = { Text("Mobile Number", fontSize = 16.sp) },
+                            placeholder = { Text("+91 Enter mobile number", color = Color.Black.copy(alpha = 0.6f), fontSize = 15.sp) },
                             leadingIcon = {
                                 Icon(
-                                    imageVector = Icons.Outlined.PhoneAndroid,
+                                    imageVector = Icons.Default.PhoneAndroid,
                                     contentDescription = null,
-                                    tint = Color.Black
+                                    tint = Color.Black,
+                                    modifier = Modifier.size(22.dp)
                                 )
                             },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
-                            colors = fieldColors
+                            colors = fieldColors,
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp)
                         )
                     }
 
                     OutlinedTextField(
                         value = password,
                         onValueChange = { password = it },
-                        label = { Text("Password") },
-                        placeholder = { Text("Enter your password", color = Color.Black.copy(alpha = 0.6f)) },
+                        label = { Text("Password", fontSize = 16.sp) },
+                        placeholder = { Text("Enter your password", color = Color.Black.copy(alpha = 0.6f), fontSize = 15.sp) },
                         leadingIcon = {
                             Icon(
-                                imageVector = Icons.Outlined.Lock,
+                                imageVector = Icons.Default.Lock,
                                 contentDescription = null,
-                                tint = Color.Black
+                                tint = Color.Black,
+                                modifier = Modifier.size(22.dp)
                             )
                         },
                         trailingIcon = {
                             Icon(
-                                imageVector = if (showPassword) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                                imageVector = if (showPassword) Icons.Default.VisibilityOff else Icons.Default.Visibility,
                                 contentDescription = "Toggle password",
                                 tint = Color.Black,
                                 modifier = Modifier
-                                    .size(22.dp)
+                                    .size(26.dp)
                                     .clickable { showPassword = !showPassword }
                             )
                         },
@@ -260,27 +274,28 @@ fun LoginScreen(
                         singleLine = true,
                         visualTransformation =
                             if (showPassword)
-                                androidx.compose.ui.text.input.VisualTransformation.None
+                                VisualTransformation.None
                             else
-                                androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                        colors = fieldColors
+                                PasswordVisualTransformation(),
+                        colors = fieldColors,
+                        textStyle = androidx.compose.ui.text.TextStyle(fontSize = 16.sp)
                     )
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 4.dp),
+                            .padding(top = 6.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
                             modifier = Modifier
                                 .background(Color(0xFFF9FAFB), RoundedCornerShape(8.dp))
-                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "Demo: Editable",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 color = Color(0xFF6B7280)
                             )
                         }
@@ -293,7 +308,7 @@ fun LoginScreen(
                         ) {
                             Text(
                                 text = "Forgot Password?",
-                                fontSize = 13.sp,
+                                fontSize = 14.sp,
                                 fontWeight = FontWeight.Medium,
                                 color = headerColor
                             )
@@ -302,13 +317,20 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            // TODO: navigate to home/dashboard later
-                            // navController?.navigate("home")
+                            // --- Save user role into SharedPreferences so HomeScreen can read it ---
+                            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                            prefs.edit().putString("userRole", if (isLawyer) "lawyer" else "client").apply()
+
+                            // --- Navigate to Home (replace "home" with your actual home route if different) ---
+                            navController?.navigate("home") {
+                                // optional: clear login from back stack
+                                popUpTo("login") { inclusive = true }
+                            }
                         },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(top = 12.dp)
-                            .height(50.dp),
+                            .padding(top = 14.dp)
+                            .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = headerColor,
                             contentColor = Color.White
@@ -316,13 +338,13 @@ fun LoginScreen(
                     ) {
                         Text(
                             text = "Sign In as ${if (isLawyer) "Lawyer" else "Client"}",
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
                     text = buildAnnotatedString {
@@ -336,7 +358,7 @@ fun LoginScreen(
                             append("Sign Up")
                         }
                     },
-                    fontSize = 14.sp,
+                    fontSize = 15.sp,
                     color = Color(0xFF4B5563),
                     textAlign = TextAlign.Center,
                     modifier = Modifier
@@ -357,7 +379,7 @@ private fun RowScope.ToggleChip(
     selected: Boolean,
     onClick: () -> Unit,
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector
+    icon: ImageVector
 ) {
     val bgColor = if (selected) Color.White else Color.Transparent
     val textColor = if (selected) Color(0xFF111827) else Color(0xFF6B7280)
@@ -366,11 +388,11 @@ private fun RowScope.ToggleChip(
     Surface(
         modifier = Modifier
             .weight(1f)
-            .height(40.dp)
+            .height(44.dp)
             .clip(RoundedCornerShape(12.dp))
             .clickable { onClick() },
         color = bgColor,
-        shadowElevation = elevation
+        tonalElevation = elevation
     ) {
         Row(
             modifier = Modifier.fillMaxSize(),
@@ -381,12 +403,12 @@ private fun RowScope.ToggleChip(
                 imageVector = icon,
                 contentDescription = null,
                 tint = textColor,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(20.dp)
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = label,
-                fontSize = 13.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Medium,
                 color = textColor
             )

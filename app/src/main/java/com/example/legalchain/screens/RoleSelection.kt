@@ -1,15 +1,14 @@
 package com.example.legalchain.screens
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material.icons.outlined.Work
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Work
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,17 +20,15 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 
 private val DarkGreen = Color(0xFF004D40)
-private val LightBorder = Color(0xFFE5E7EB)
-private val TitleText = Color(0xFF111827)
-private val BodyText = Color(0xFF111111)
 
 @Composable
 fun RoleSelectionScreen(navController: NavHostController? = null) {
+    val colors = MaterialTheme.colorScheme
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(colors.background),
         contentAlignment = Alignment.Center
     ) {
 
@@ -42,89 +39,68 @@ fun RoleSelectionScreen(navController: NavHostController? = null) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // ⚖️ JUSTICE ICON BOX
+            // Main Logo Box — Bigger + Dark Green
             Box(
                 modifier = Modifier
-                    .size(84.dp)
-                    .background(DarkGreen, RoundedCornerShape(24.dp)),
+                    .size(110.dp) // increased size
+                    .background(DarkGreen, RoundedCornerShape(28.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = "⚖️",
-                    fontSize = 40.sp,
+                    fontSize = 56.sp, // larger icon
                     color = Color.White
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             Text(
                 text = "Welcome to LegalChain",
-                fontSize = 22.sp,
+                fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = TitleText,
+                color = colors.onBackground,
                 textAlign = TextAlign.Center
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(10.dp))
 
             Text(
                 text = "Please select your role to continue to your personalized dashboard.",
-                fontSize = 14.sp,
-                color = BodyText,
+                fontSize = 16.sp,
+                color = colors.onBackground.copy(alpha = 0.75f),
                 textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 12.dp)
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // OPTIONS
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
 
-                // LAWYER OPTION
                 RoleOptionCard(
                     title = "Login as Lawyer",
                     subtitle = "Manage cases, hearings & clients",
-                    onClick = {
-                        navController?.navigate("login_lawyer")
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Work,
-                            contentDescription = "Lawyer",
-                            tint = Color.Black,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
+                    onClick = { navController?.navigate("login_lawyer") },
+                    icon = Icons.Filled.Work
                 )
 
-                // CLIENT OPTION
                 RoleOptionCard(
                     title = "Login as Client",
                     subtitle = "Track cases & view documents",
-                    onClick = {
-                        navController?.navigate("login_client")
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = Icons.Outlined.Person,
-                            contentDescription = "Client",
-                            tint = Color.Black,
-                            modifier = Modifier.size(26.dp)
-                        )
-                    }
+                    onClick = { navController?.navigate("login_client") },
+                    icon = Icons.Filled.Person
                 )
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
             Text(
                 text = "By continuing, you agree to our Terms of Service",
-                fontSize = 11.sp,
-                color = Color(0xFF4B5563),
+                fontSize = 12.sp,
+                color = colors.onBackground.copy(alpha = 0.6f),
                 textAlign = TextAlign.Center
             )
         }
@@ -136,48 +112,54 @@ private fun RoleOptionCard(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
-    icon: @Composable () -> Unit
+    icon: androidx.compose.ui.graphics.vector.ImageVector
 ) {
+    val colors = MaterialTheme.colorScheme
+
     Surface(
         modifier = Modifier
             .fillMaxWidth()
+            .height(90.dp) // increased height
             .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        color = Color.White,
-        shadowElevation = 1.dp,
-        border = androidx.compose.foundation.BorderStroke(
-            width = 2.dp,
-            color = LightBorder
-        )
+        shape = RoundedCornerShape(24.dp), // more rounded
+        color = colors.surface,
+        tonalElevation = 2.dp,
+        border = BorderStroke(2.dp, colors.surfaceVariant)
     ) {
         Row(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 14.dp),
+                .padding(horizontal = 20.dp, vertical = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
 
+            // Bigger icon container
             Box(
                 modifier = Modifier
-                    .size(52.dp)
-                    .background(Color(0xFFE5E7EB), RoundedCornerShape(14.dp)),
+                    .size(64.dp)
+                    .background(colors.surfaceVariant, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
-                icon()
+                Icon(
+                    imageVector = icon,
+                    contentDescription = title,
+                    tint = colors.onSurface,
+                    modifier = Modifier.size(32.dp) // increased icon size
+                )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
             Column {
                 Text(
                     text = title,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TitleText
+                    fontSize = 18.sp,   // medium-large
+                    fontWeight = FontWeight.SemiBold,
+                    color = colors.onSurface
                 )
                 Text(
                     text = subtitle,
-                    fontSize = 13.sp,
-                    color = BodyText
+                    fontSize = 14.sp,
+                    color = colors.onSurface.copy(alpha = 0.8f)
                 )
             }
         }

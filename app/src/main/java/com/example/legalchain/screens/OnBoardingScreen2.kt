@@ -8,17 +8,16 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -125,21 +124,21 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
                     }
 
                     FloatingIcon(
-                        icon = Icons.Outlined.AutoAwesome,
+                        icon = Icons.Filled.AutoAwesome,
                         background = DarkGreen,
                         offsetX = (-90).dp,
                         offsetY = (-70).dp
                     )
 
                     FloatingIcon(
-                        icon = Icons.Outlined.Notifications,
+                        icon = Icons.Filled.Notifications,
                         background = AccentAmber,
                         offsetX = 95.dp,
                         offsetY = 0.dp
                     )
 
                     FloatingIcon(
-                        icon = Icons.Outlined.Description,
+                        icon = Icons.Filled.Description,
                         background = AccentGreen,
                         offsetX = (-70).dp,
                         offsetY = 70.dp
