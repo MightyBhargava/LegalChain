@@ -76,7 +76,8 @@ class DocumentOCRViewModel(filePath: String) : ViewModel() {
 fun DocumentOCRScreen(
     filePath: String,
     onBack: () -> Unit,
-    onOpenFile: (String) -> Unit
+    onOpenFile: (String) -> Unit,
+    onOpenShare: () -> Unit
 ) {
     val viewModel = remember { DocumentOCRViewModel(filePath) }
     val ocr by viewModel.state.collectAsState()
@@ -202,13 +203,11 @@ fun DocumentOCRScreen(
 
                 Button(
                     modifier = Modifier.weight(1f),
-                    onClick = {
-                        shareText(context, ocr.text, ocr.documentName)
-                    }
+                    onClick = { onOpenShare() }
                 ) {
                     Icon(Icons.Filled.FileDownload, null)
                     Spacer(Modifier.width(6.dp))
-                    Text("Export", fontWeight = FontWeight.Bold)
+                    Text("Share", fontWeight = FontWeight.Bold)
                 }
             }
 

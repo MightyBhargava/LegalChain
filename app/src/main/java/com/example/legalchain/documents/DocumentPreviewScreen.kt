@@ -8,24 +8,29 @@ import android.provider.MediaStore
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.compose.foundation.Image
 import java.io.File
+import android.graphics.BitmapFactory
 import java.io.InputStream
 import java.io.OutputStream
 
@@ -34,26 +39,67 @@ import java.io.OutputStream
 fun DocumentPreviewScreen(
     docId: String,
     documentName: String,
+    docType: String,
     pages: Int,
     size: String,
     category: String,
     relatedCase: String,
     uploadedAt: String,
     tags: List<String>,
+    fileName: String,
     onBack: () -> Unit,
     onViewOCR: () -> Unit,
     onDelete: () -> Unit,
-    onAddTag: () -> Unit = {}
+    onOpenShare: () -> Unit,
+    onAddTag: (List<String>) -> Unit = {}
 ) {
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
+    var previewBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var scale by remember { mutableFloatStateOf(1f) }
+    
+    // Tag management state
+    var currentTags by remember { mutableStateOf(tags) }
+    var showAddTagDialog by remember { mutableStateOf(false) }
+    var tagInput by remember { mutableStateOf("") }
+    
+    // Update currentTags when tags prop changes
+    LaunchedEffect(tags) {
+        currentTags = tags
+    }
+    
+    fun addTag() {
+        val tag = tagInput.trim()
+        if (tag.isNotEmpty() && !currentTags.contains(tag)) {
+            val updatedTags = currentTags + tag
+            currentTags = updatedTags
+            onAddTag(updatedTags)
+            tagInput = ""
+            showAddTagDialog = false
+        }
+    }
+    
+    fun removeTag(tag: String) {
+        val updatedTags = currentTags - tag
+        currentTags = updatedTags
+        onAddTag(updatedTags)
+    }
 
     val DARK_GREEN = Color(0xFF0B5D2E)
     val LIGHT_GREEN = Color(0xFFE6F4EA)
     val TEXT_BLACK = Color(0xFF111111)
 
-    val file = File(context.filesDir, "$docId.pdf")
+    val file = File(context.filesDir, fileName)
+    LaunchedEffect(fileName) {
+        if (docType.equals("image", true) && file.exists()) {
+            runCatching { BitmapFactory.decodeFile(file.absolutePath) }.onSuccess {
+                previewBitmap = it
+            }
+        } else {
+            previewBitmap = null
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -67,7 +113,7 @@ fun DocumentPreviewScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { shareFile(context, file) }) {
+                    IconButton(onClick = onOpenShare) {
                         Icon(Icons.Filled.Share, null, tint = Color.White)
                     }
                 },
@@ -101,47 +147,85 @@ fun DocumentPreviewScreen(
                     shape = RoundedCornerShape(18.dp),
                     elevation = CardDefaults.cardElevation(6.dp)
                 ) {
-                    Column(
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
+                            .padding(24.dp)
                     ) {
-                        Icon(
-                            Icons.Filled.Description,
-                            null,
-                            tint = Color.Red,
-                            modifier = Modifier.size(64.dp)
-                        )
-                        Spacer(Modifier.height(12.dp))
-                        Text(
-                            documentName,
-                            fontWeight = FontWeight.Bold,
-                            color = TEXT_BLACK,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Text(
-                            "$pages pages • $size",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
-                        )
-                    }
-                }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            val bmp = previewBitmap
+                            if (docType.equals("image", true) && bmp != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .weight(1f, fill = false),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Image(
+                                        bitmap = bmp.asImageBitmap(),
+                                        contentDescription = "Document image",
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .graphicsLayer(
+                                                scaleX = scale,
+                                                scaleY = scale
+                                            )
+                                    )
 
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ZoomIcon(Icons.Filled.ZoomOut)
-                    ZoomIcon(Icons.Filled.ZoomIn)
+                                    Row(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomEnd)
+                                            .padding(10.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                    ) {
+                                        IconButton(
+                                            onClick = { scale = (scale - 0.2f).coerceIn(0.5f, 5f) },
+                                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White)
+                                        ) {
+                                            Icon(Icons.Filled.ZoomOut, null, tint = Color.Gray)
+                                        }
+                                        IconButton(
+                                            onClick = { scale = (scale + 0.2f).coerceIn(0.5f, 5f) },
+                                            colors = IconButtonDefaults.iconButtonColors(containerColor = Color.White)
+                                        ) {
+                                            Icon(Icons.Filled.ZoomIn, null, tint = Color.Gray)
+                                        }
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                            } else {
+                                Icon(
+                                    Icons.Filled.Description,
+                                    null,
+                                    tint = Color.Red,
+                                    modifier = Modifier.size(64.dp)
+                                )
+                                Spacer(Modifier.height(12.dp))
+                            }
+
+                            Text(
+                                documentName,
+                                fontWeight = FontWeight.Bold,
+                                color = TEXT_BLACK,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            Text(
+                                "$pages pages • $size",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = Color.Gray
+                            )
+                        }
+                    }
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
+    Spacer(Modifier.height(16.dp))
 
             /* ================= DOWNLOAD / SHARE ================= */
             Row(
@@ -160,7 +244,7 @@ fun DocumentPreviewScreen(
 
                 OutlinedButton(
                     modifier = Modifier.weight(1f),
-                    onClick = { shareFile(context, file) }
+                    onClick = onOpenShare
                 ) {
                     Icon(Icons.Filled.Share, null)
                     Spacer(Modifier.width(6.dp))
@@ -219,7 +303,7 @@ fun DocumentPreviewScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp),
-                    verticalArrangement = Arrangement.SpaceEvenly
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     Text("Document Details", fontWeight = FontWeight.Bold, color = TEXT_BLACK)
                     DetailRow(Icons.Filled.Folder, "Category", category)
@@ -250,16 +334,42 @@ fun DocumentPreviewScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text("Tags", fontWeight = FontWeight.Bold)
-                        IconButton(onClick = onAddTag) {
+                        IconButton(onClick = { showAddTagDialog = true }) {
                             Icon(Icons.Filled.Add, contentDescription = "Add Tag")
                         }
                     }
 
                     Spacer(Modifier.height(12.dp))
 
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        tags.forEach {
-                            AssistChip(onClick = {}, label = { Text(it) })
+                    if (currentTags.isEmpty()) {
+                        Text(
+                            "No tags added",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = Color.Gray
+                        )
+                    } else {
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            items(currentTags) { tag ->
+                                AssistChip(
+                                    onClick = {},
+                                    label = { Text(tag) },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Filled.Close,
+                                            contentDescription = "Remove tag",
+                                            modifier = Modifier
+                                                .size(16.dp)
+                                                .clickable { removeTag(tag) }
+                                        )
+                                    },
+                                    colors = AssistChipDefaults.assistChipColors(
+                                        containerColor = DARK_GREEN
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -270,8 +380,8 @@ fun DocumentPreviewScreen(
             /* ================= DELETE ================= */
             TextButton(
                 onClick = {
+                    // Delegate navigation to the caller so it can decide where to go after delete
                     onDelete()
-                    onBack()
                 },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -285,19 +395,48 @@ fun DocumentPreviewScreen(
             Spacer(Modifier.height(24.dp))
         }
     }
-}
-
-/* ---------------- UI HELPERS ---------------- */
-
-@Composable
-private fun ZoomIcon(icon: androidx.compose.ui.graphics.vector.ImageVector) {
-    Box(
-        modifier = Modifier
-            .size(42.dp)
-            .background(Color.White, CircleShape),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(icon, null, tint = Color.Gray)
+    
+    // Add Tag Dialog
+    if (showAddTagDialog) {
+        AlertDialog(
+            onDismissRequest = { 
+                showAddTagDialog = false
+                tagInput = ""
+            },
+            title = { Text("Add Tag", fontWeight = FontWeight.Bold) },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = tagInput,
+                        onValueChange = { tagInput = it },
+                        placeholder = { Text("Enter tag name") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        trailingIcon = {
+                            IconButton(onClick = { addTag() }) {
+                                Icon(Icons.Filled.Add, contentDescription = "Add")
+                            }
+                        }
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { addTag() },
+                    enabled = tagInput.trim().isNotEmpty()
+                ) {
+                    Text("Add")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { 
+                    showAddTagDialog = false
+                    tagInput = ""
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -310,10 +449,23 @@ private fun downloadPdfToDownloads(
 ) {
     if (!sourceFile.exists()) return
 
+    // Get file extension and mime type
+    val extension = sourceFile.extension.lowercase()
+    val mimeType = when (extension) {
+        "pdf" -> "application/pdf"
+        "jpg", "jpeg" -> "image/jpeg"
+        "png" -> "image/png"
+        "doc" -> "application/msword"
+        "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        else -> "application/octet-stream"
+    }
+    
+    val displayName = if (fileName.contains(".")) fileName else "$fileName.$extension"
+
     val resolver = context.contentResolver
     val contentValues = ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, "$fileName.pdf")
-        put(MediaStore.MediaColumns.MIME_TYPE, "application/pdf")
+        put(MediaStore.MediaColumns.DISPLAY_NAME, displayName)
+        put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
         put(MediaStore.MediaColumns.RELATIVE_PATH, "Download")
     }
 

@@ -6,16 +6,19 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import com.example.legalchain.profile.HistoryScreen
+import com.example.legalchain.profile.FavoritesScreen
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.navigation.NavType
+import com.example.legalchain.profile.HelpScreen
 import androidx.navigation.compose.*
 import androidx.navigation.navArgument
+import com.example.legalchain.ai.AIInsightsScreen
 import com.example.legalchain.cases.*
 import com.example.legalchain.data.DataStoreManager
 import com.example.legalchain.documents.*
@@ -23,6 +26,8 @@ import com.example.legalchain.home.HomeScreen
 import com.example.legalchain.home.NotificationScreen
 import com.example.legalchain.home.SettingsScreen
 import com.example.legalchain.screens.*
+import com.example.legalchain.profile.EditProfileScreen
+import com.example.legalchain.profile.ProfileScreen
 import com.example.legalchain.ui.theme.LegalChainTheme
 import kotlinx.coroutines.launch
 import java.io.File
@@ -37,7 +42,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         dataStoreManager = DataStoreManager(applicationContext)
 
         setContent {
@@ -47,14 +51,16 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-private fun AppContent(
-    dataStoreManager: DataStoreManager
-) {
+private fun AppContent(dataStoreManager: DataStoreManager) {
+
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val isDarkMode by dataStoreManager.isDarkModeFlow.collectAsState(false)
 
     val ctx = LocalContext.current
+    LaunchedEffect(Unit) {
+        DocumentRepository.init(ctx)
+    }
     val prefs = remember {
         ctx.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
     }
@@ -67,8 +73,7 @@ private fun AppContent(
                 startDestination = "splash"
             ) {
 
-                /* ---------------- SPLASH / AUTH ---------------- */
-
+                /* ---------- AUTH & ONBOARDING ---------- */
                 composable("splash") { SplashScreen(navController) }
                 composable("onboarding1") { OnboardingScreen1(navController) }
                 composable("onboarding2") { OnboardingScreen2(navController) }
@@ -80,30 +85,52 @@ private fun AppContent(
                 composable("register") { RegisterScreen(navController) }
                 composable("forgot_password") { ForgotPasswordScreen(navController) }
 
-                /* ---------------- HOME ---------------- */
-
+                /* ---------- HOME ---------- */
                 composable("home") {
                     HomeScreen(
                         onNavigateRaw = { route ->
-                            navController.navigate(route.removePrefix("/"))
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
                         },
                         unreadCountProvider = { 0 }
                     )
                 }
 
-                /* ---------------- NOTIFICATIONS ---------------- */
-
-                composable("notifications") {
-                    NotificationScreen(
+                /* ---------- AI INSIGHTS ---------- */
+                composable("ai/insights") {
+                    AIInsightsScreen(
                         onBack = { navController.popBackStack() },
-                        onOpenRoute = { route ->
-                            navController.navigate(route.removePrefix("/"))
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
                         }
                     )
                 }
 
-                /* ---------------- SETTINGS ---------------- */
+                composable("ai/daily") {
+                    AIInsightsScreen(
+                        onBack = { navController.popBackStack() },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        }
+                    )
+                }
 
+                /* ---------- NOTIFICATIONS ---------- */
+                composable("notifications") {
+                    NotificationScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenRoute = { route ->
+                            navController.navigate(route)
+                        }
+                    )
+                }
+
+                /* ---------- SETTINGS ---------- */
                 composable("settings") {
                     SettingsScreen(
                         onEmailNotificationsToggle = {},
@@ -115,14 +142,13 @@ private fun AppContent(
                             }
                         },
                         onNavigate = { route ->
-                            navController.navigate(route.removePrefix("/"))
+                            navController.navigate(route)
                         },
                         onBack = { navController.popBackStack() }
                     )
                 }
 
-                /* ---------------- CASES ---------------- */
-
+                /* ---------- CASES ---------- */
                 composable("cases") {
                     val role = prefs.getString("userRole", "client") ?: "client"
 
@@ -136,6 +162,14 @@ private fun AppContent(
                             navController.navigate("home") {
                                 popUpTo("home") { inclusive = true }
                             }
+                        },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        },
+                        onBrowseCategories = {
+                            navController.navigate("cases/categories")
                         }
                     )
                 }
@@ -149,90 +183,176 @@ private fun AppContent(
                 }
 
                 composable(
-                    route = "cases/{caseId}/activity",
-                    arguments = listOf(navArgument("caseId") {
-                        type = NavType.StringType
-                    })
+                    "cases/{caseId}/activity",
+                    arguments = listOf(navArgument("caseId") { type = NavType.StringType })
                 ) {
                     CaseActivityScreen(onBack = { navController.popBackStack() })
                 }
 
-                /* ---------------- DOCUMENT LIST ---------------- */
+                /* ---------- HEARINGS ---------- */
+                composable("hearings/add") {
+                    AddHearingScreen(
+                        onBack = { navController.popBackStack() },
+                        onSave = { navController.popBackStack() }
+                    )
+                }
 
+                /* ---------- DOCUMENTS ---------- */
                 composable("docs") {
                     DocumentListScreen(
-                        onBack = { navController.popBackStack() },
-                        onUpload = { navController.navigate("documents/upload") },
-                        onOpenCategory = {
-                            navController.navigate("documents/categories")
+                        onBack = {
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true }
+                            }
                         },
+                        onUpload = { navController.navigate("documents/upload") },
+                        onOpenCategory = { navController.navigate("documents/categories") },
                         onOpenDocument = { docId ->
                             navController.navigate("documents/preview/$docId")
+                        },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
                         }
                     )
                 }
 
-                /* ---------------- DOCUMENT PREVIEW ---------------- */
+                composable("cases/categories") {
+                    CaseCategoriesScreen(
+                        onBack = { navController.popBackStack() },
+                        onCategoryClick = { categoryId ->
+                            navController.navigate("cases?category=$categoryId")
+                        },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        }
+                    )
+                }
+
+                composable("documents/categories") {
+                    DocumentCategoriesScreen(
+                        onBack = { navController.popBackStack() },
+                        onOpenCategory = { navController.navigate("docs") }
+                    )
+                }
 
                 composable(
-                    route = "documents/preview/{docId}",
-                    arguments = listOf(navArgument("docId") {
-                        type = NavType.StringType
-                    })
+                    "documents/preview/{docId}",
+                    arguments = listOf(navArgument("docId") { type = NavType.StringType })
                 ) { entry ->
                     val docId = entry.arguments?.getString("docId") ?: ""
+                    val documents by DocumentRepository.documents.collectAsState()
+                    val document = documents.find { it.id == docId }
 
-                    DocumentPreviewScreen(
+                    if (document == null) {
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack()
+                        }
+                    } else {
+                        DocumentPreviewScreen(
+                            docId = document.id,
+                            docType = document.type,
+                            documentName = document.name,
+                            pages = 3, // could be enhanced with real page count if available
+                            size = document.size,
+                            category = document.category,
+                            relatedCase = document.caseName,
+                            uploadedAt = document.uploadedAt,
+                            tags = document.tags,
+                            fileName = document.fileName,
+                            onBack = { navController.popBackStack() },
+                            onViewOCR = {
+                                navController.navigate("documents/ocr/${document.id}")
+                            },
+                            onDelete = {
+                                DocumentRepository.removeDocument(document.id, ctx)
+                                // Always navigate to docs screen (DocumentListScreen) - guaranteed
+                                // Pop back to docs if it exists, otherwise navigate to it
+                                val popped = navController.popBackStack("docs", false)
+                                if (!popped) {
+                                    // If docs is not in back stack, pop current screen then navigate to docs
+                                    navController.popBackStack()
+                                    navController.navigate("docs") {
+                                        launchSingleTop = true
+                                    }
+                                }
+                            },
+                            onOpenShare = {
+                                navController.navigate("documents/share/${document.id}")
+                            },
+                            onAddTag = { updatedTags ->
+                                // Update document tags in repository
+                                DocumentRepository.updateDocumentTags(document.id, updatedTags, ctx)
+                            }
+                        )
+                    }
+                }
+
+                composable(
+                    "documents/share/{docId}",
+                    arguments = listOf(navArgument("docId") { type = NavType.StringType })
+                ) { entry ->
+                    val docId = entry.arguments?.getString("docId") ?: ""
+                    DocumentShareScreen(
                         docId = docId,
                         documentName = "$docId.pdf",
-                        pages = 3,
                         size = "245 KB",
-                        category = "FIR",
-                        relatedCase = "Singh vs State",
-                        uploadedAt = "Dec 10, 2024",
-                        tags = listOf("important"),
-                        onBack = { navController.popBackStack() },
-                        onViewOCR = {
-                            navController.navigate("documents/ocr/$docId")
-                        },
-                        onDelete = {
-                            navController.popBackStack("docs", false)
-                        }
+                        onBack = { navController.popBackStack() }
                     )
                 }
-
-                /* ---------------- DOCUMENT OCR ---------------- */
 
                 composable(
-                    route = "documents/ocr/{docId}",
-                    arguments = listOf(navArgument("docId") {
-                        type = NavType.StringType
-                    })
+                    "documents/ocr/{docId}",
+                    arguments = listOf(navArgument("docId") { type = NavType.StringType })
                 ) { entry ->
                     val docId = entry.arguments?.getString("docId") ?: ""
-                    val file = File(ctx.filesDir, "$docId.pdf")
+                    val documents by DocumentRepository.documents.collectAsState()
+                    val document = documents.find { it.id == docId }
 
-                    fun openPdf(path: String) {
-                        val uri = FileProvider.getUriForFile(
-                            ctx,
-                            "${ctx.packageName}.fileprovider",
-                            File(path)
-                        )
-                        val intent = Intent(Intent.ACTION_VIEW).apply {
-                            setDataAndType(uri, "application/pdf")
-                            flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                    if (document == null) {
+                        LaunchedEffect(Unit) {
+                            navController.popBackStack()
                         }
-                        ctx.startActivity(intent)
+                    } else {
+                        val file = File(ctx.filesDir, document.fileName)
+
+                        fun openFile(path: String) {
+                            val fileToOpen = File(path)
+                            val uri = FileProvider.getUriForFile(
+                                ctx,
+                                "${ctx.packageName}.fileprovider",
+                                fileToOpen
+                            )
+                            val extension = fileToOpen.extension.lowercase()
+                            val mimeType = when (extension) {
+                                "pdf" -> "application/pdf"
+                                "jpg", "jpeg" -> "image/jpeg"
+                                "png" -> "image/png"
+                                "doc" -> "application/msword"
+                                "docx" -> "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                else -> "application/octet-stream"
+                            }
+
+                            val intent = Intent(Intent.ACTION_VIEW).apply {
+                                setDataAndType(uri, mimeType)
+                                flags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+                            }
+                            ctx.startActivity(intent)
+                        }
+
+                        DocumentOCRScreen(
+                            filePath = file.absolutePath,
+                            onBack = { navController.popBackStack() },
+                            onOpenFile = { openFile(it) },
+                            onOpenShare = {
+                                navController.navigate("documents/share/${document.id}")
+                            }
+                        )
                     }
-
-                    DocumentOCRScreen(
-                        filePath = file.absolutePath,
-                        onBack = { navController.popBackStack() },
-                        onOpenFile = { openPdf(it) }
-                    )
                 }
-
-                /* ---------------- DOCUMENT UPLOAD ---------------- */
 
                 composable("documents/upload") {
                     DocumentUploadScreen(
@@ -244,7 +364,116 @@ private fun AppContent(
                         }
                     )
                 }
+
+                /* ---------- SEARCH ---------- */
+                composable("search") {
+                    // TODO: Implement SearchScreen
+                    // For now, navigate back
+                    navController.popBackStack()
+                }
+
+                /* ---------- PROFILE ---------- */
+                composable("profile") {
+                    val role = prefs.getString("userRole", "client") ?: "client"
+                    val isLawyer = role == "lawyer"
+                    val defaultName = if (isLawyer) "Adv. Rajesh Kumar" else "Client User"
+                    val defaultTitle = if (isLawyer) "Senior Advocate • High Court" else "Your Legal Companion"
+                    val profileEntry = navController.getBackStackEntry("profile")
+                    val nameState = remember(profileEntry) {
+                        profileEntry.savedStateHandle.getStateFlow("profile_name", defaultName)
+                    }
+                    val titleState = remember(profileEntry) {
+                        profileEntry.savedStateHandle.getStateFlow("profile_title", defaultTitle)
+                    }
+                    val profileName by nameState.collectAsState()
+                    val profileTitle by titleState.collectAsState()
+
+                    ProfileScreen(
+                        isLawyer = isLawyer,
+                        lawyerName = if (isLawyer) profileName else "Adv. Rajesh Kumar",
+                        lawyerTitle = if (isLawyer) profileTitle else "Senior Advocate • High Court",
+                        clientName = if (!isLawyer) profileName else "Client User",
+                        clientTitle = if (!isLawyer) profileTitle else "Your Legal Companion",
+                        onBack = {
+                            navController.navigate("home") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        },
+                        onLogoutConfirm = {
+                            navController.navigate("role_selection") {
+                                popUpTo("home") { inclusive = true }
+                            }
+                        }
+                    )
+                }
+
+                composable("profile/edit") {
+                    val role = prefs.getString("userRole", "client") ?: "client"
+                    val isLawyer = role == "lawyer"
+                    val profileEntry = navController.getBackStackEntry("profile")
+                    val currentName = profileEntry.savedStateHandle.get<String>("profile_name")
+                        ?: if (isLawyer) "Adv. Rajesh Kumar" else "Client User"
+                    val currentTitle = profileEntry.savedStateHandle.get<String>("profile_title")
+                        ?: if (isLawyer) "Senior Advocate • High Court" else "Your Legal Companion"
+
+                    EditProfileScreen(
+                        initialName = currentName,
+                        initialDesignation = currentTitle,
+                        onBack = { navController.popBackStack() },
+                        onSave = { updatedName, _, _, updatedDesignation, _, _ ->
+                            profileEntry.savedStateHandle["profile_name"] = updatedName
+                            profileEntry.savedStateHandle["profile_title"] = updatedDesignation
+                            navController.popBackStack()
+                        }
+                    )
+                }
+                /* ---------- HELP & SUPPORT ---------- */
+                composable("profile/help") {
+                    HelpScreen(
+                        onBack = {
+                            navController.navigate("profile") {
+                                popUpTo("profile") { inclusive = false }
+                            }
+                        }
+                    )
+                }
+                /* ---------- PROFILE HISTORY ---------- */
+                composable("profile/history") {
+                    HistoryScreen(
+                        onBack = {
+                            navController.navigate("profile") {
+                                popUpTo("profile") { inclusive = false }
+                            }
+                        }
+                    )
+                }
+                /* ---------- PROFILE FAVORITES ---------- */
+                composable("profile/favorites") {
+                    FavoritesScreen(
+                        onBack = {
+                            navController.navigate("profile") {
+                                    popUpTo("profile") { inclusive = false }
+                            }
+                        }
+                    )
+                }
+                /* ---------- CHAT ---------- */
+                composable("chat/lawyer") {
+                    // TODO: Implement ChatScreen for lawyer
+                    navController.popBackStack()
+                }
+
+                composable("chat/client") {
+                    // TODO: Implement ChatScreen for client
+                    navController.popBackStack()
+                }
             }
         }
     }
 }
+

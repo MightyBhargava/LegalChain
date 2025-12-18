@@ -13,10 +13,10 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.automirrored.filled.Article
-import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,8 +25,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -175,6 +175,12 @@ fun HomeScreen(
                 )
                 NavigationBarItem(
                     selected = false,
+                    onClick = { navigate("/ai/insights") },
+                    icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = "AI Insights", tint = Color.Black, modifier = Modifier.size(22.dp)) },
+                    label = { Text("AI Insights", color = PrimaryText, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
                     onClick = { navigate("cases") },
                     icon = { Icon(Icons.Filled.Folder, contentDescription = "Cases", tint = Color.Black, modifier = Modifier.size(22.dp)) },
                     label = { Text("Cases", color = PrimaryText, fontWeight = FontWeight.Bold) }
@@ -184,12 +190,6 @@ fun HomeScreen(
                     onClick = { navigate("docs") },
                     icon = { Icon(Icons.AutoMirrored.Filled.Article, contentDescription = "Docs", tint = Color.Black, modifier = Modifier.size(22.dp)) },
                     label = { Text("Docs", color = PrimaryText, fontWeight = FontWeight.Bold) }
-                )
-                NavigationBarItem(
-                    selected = false,
-                    onClick = { navigate("insights") },
-                    icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = "Insights", tint = Color.Black, modifier = Modifier.size(22.dp)) },
-                    label = { Text("Insights", color = PrimaryText, fontWeight = FontWeight.Bold) }
                 )
 
                 // Chat item — use AutoMirrored to avoid deprecation
@@ -539,3 +539,4 @@ private fun ActivityCard(title: String, subtitle: String, icon: @Composable () -
         }
     }
 }
+

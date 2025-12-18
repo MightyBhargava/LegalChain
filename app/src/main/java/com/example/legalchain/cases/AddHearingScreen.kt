@@ -54,12 +54,13 @@ fun AddHearingScreen(
         Triple("2", "TechCorp vs. Zee", "CR/2024/5678")
     ),
     onBack: () -> Unit = {},
-    onAddHearing: (Hearing) -> Unit = {}
+    onSave: (Hearing) -> Unit = {}
 ) {
     val context = LocalContext.current
 
     var selectedCaseIndex by remember { mutableStateOf(0) }
-    val (caseId, caseTitle, caseNumber) = availableCases.getOrElse(selectedCaseIndex) { availableCases.first() }
+    val (caseId, caseTitle, caseNumber) =
+        availableCases.getOrElse(selectedCaseIndex) { availableCases.first() }
 
     var date by remember { mutableStateOf("") }
     var time by remember { mutableStateOf("") }
@@ -68,200 +69,205 @@ fun AddHearingScreen(
     var notes by remember { mutableStateOf("") }
     var reminders by remember { mutableStateOf(Reminders()) }
 
-    var showCaseDropdown by remember { mutableStateOf(false) }
-
     val calendar = Calendar.getInstance()
-    val year = calendar.get(Calendar.YEAR)
-    val month = calendar.get(Calendar.MONTH)
-    val day = calendar.get(Calendar.DAY_OF_MONTH)
 
-    val datePicker = DatePickerDialog(context, { _: DatePicker, y: Int, m: Int, d: Int ->
-        val mm = (m + 1).toString().padStart(2, '0')
-        val dd = d.toString().padStart(2, '0')
-        date = "${y}-$mm-$dd"
-    }, year, month, day)
+    val datePicker = DatePickerDialog(
+        context,
+        { _: DatePicker, y: Int, m: Int, d: Int ->
+            date = "%04d-%02d-%02d".format(y, m + 1, d)
+        },
+        calendar.get(Calendar.YEAR),
+        calendar.get(Calendar.MONTH),
+        calendar.get(Calendar.DAY_OF_MONTH)
+    )
 
-    val timePicker = TimePickerDialog(context, { _: TimePicker, h: Int, min: Int ->
-        val hh = h.toString().padStart(2, '0')
-        val mm = min.toString().padStart(2, '0')
-        time = "$hh:$mm"
-    }, calendar.get(Calendar.HOUR_OF_DAY), calendar.get(Calendar.MINUTE), false)
+    val timePicker = TimePickerDialog(
+        context,
+        { _: TimePicker, h: Int, min: Int ->
+            time = "%02d:%02d".format(h, min)
+        },
+        calendar.get(Calendar.HOUR_OF_DAY),
+        calendar.get(Calendar.MINUTE),
+        false
+    )
 
     Surface(modifier = Modifier.fillMaxSize(), color = PageBg) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column {
             TopAppBar(
-                title = { Text("Add Hearing", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkGreen) },
+                title = {
+                    Text(
+                        "Add Hearing",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DarkGreen
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = DarkGreen)
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back",
+                            tint = DarkGreen
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardWhite)
             )
 
-            Column(modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
 
-                Box(modifier = Modifier
-                    .fillMaxWidth()
-                    .background(DarkGreen)
-                    .padding(14.dp)) {
+                /* ---- CASE INFO ---- */
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(DarkGreen)
+                        .padding(14.dp)
+                ) {
                     Column {
-                        Text(text = "Adding hearing for", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(text = caseTitle, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(text = caseNumber, color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+                        Text("Adding hearing for", color = Color.White.copy(0.9f), fontSize = 13.sp)
+                        Spacer(Modifier.height(4.dp))
+                        Text(caseTitle, color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                        Text(caseNumber, color = Color.White.copy(0.8f), fontSize = 12.sp)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(Modifier.height(16.dp))
 
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Date & Time", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-                        Spacer(modifier = Modifier.height(12.dp))
+                /* ---- DATE & TIME ---- */
+                SectionCard("Date & Time") {
+                    PickerField("Hearing Date", date, Icons.Filled.CalendarToday) { datePicker.show() }
+                    Spacer(Modifier.height(12.dp))
+                    PickerField("Hearing Time", time, Icons.Filled.Schedule) { timePicker.show() }
+                }
 
-                        OutlinedTextField(
-                            value = date,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Hearing Date", fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Filled.DateRange, contentDescription = null, tint = DarkGreen) },
-                            trailingIcon = {
-                                IconButton(onClick = { datePicker.show() }) { Icon(Icons.Filled.CalendarToday, contentDescription = "Pick date", tint = DarkGreen) }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                Spacer(Modifier.height(12.dp))
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                /* ---- LOCATION ---- */
+                SectionCard("Location") {
+                    OutlinedTextField(
+                        value = courtRoom,
+                        onValueChange = { courtRoom = it },
+                        label = { Text("Court Room") },
+                        leadingIcon = { Icon(Icons.Filled.Place, null, tint = DarkGreen) },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
 
-                        OutlinedTextField(
-                            value = time,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Hearing Time", fontWeight = FontWeight.SemiBold) },
-                            leadingIcon = { Icon(Icons.Filled.AccessTime, contentDescription = null, tint = DarkGreen) },
-                            trailingIcon = {
-                                IconButton(onClick = { timePicker.show() }) { Icon(Icons.Filled.Schedule, contentDescription = "Pick time", tint = DarkGreen) }
-                            },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                Spacer(Modifier.height(12.dp))
+
+                /* ---- DETAILS ---- */
+                SectionCard("Hearing Details") {
+                    OutlinedTextField(
+                        value = purpose,
+                        onValueChange = { purpose = it },
+                        label = { Text("Purpose") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = notes,
+                        onValueChange = { notes = it },
+                        label = { Text("Notes") },
+                        modifier = Modifier.fillMaxWidth().height(120.dp)
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+
+                /* ---- REMINDERS ---- */
+                SectionCard("Set Reminders") {
+                    ReminderRow("1 day before", reminders.oneDay) {
+                        reminders = reminders.copy(oneDay = it)
+                    }
+                    ReminderRow("2 hours before", reminders.twoHours) {
+                        reminders = reminders.copy(twoHours = it)
+                    }
+                    ReminderRow("30 minutes before", reminders.thirtyMin) {
+                        reminders = reminders.copy(thirtyMin = it)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(Modifier.height(20.dp))
 
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Location", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-                        Spacer(modifier = Modifier.height(12.dp))
+                /* ---- ACTION BUTTONS ---- */
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
 
-                        OutlinedTextField(
-                            value = courtRoom,
-                            onValueChange = { courtRoom = it },
-                            label = { Text("Court Room", fontWeight = FontWeight.SemiBold) },
-                            placeholder = { Text("e.g., Court Room 5") },
-                            leadingIcon = { Icon(Icons.Filled.Place, contentDescription = null, tint = DarkGreen) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                    OutlinedButton(
+                        onClick = onBack,
+                        modifier = Modifier.weight(1f).height(56.dp)
+                    ) {
+                        Text("Cancel", fontWeight = FontWeight.Bold)
+                    }
+
+                    Button(
+                        onClick = {
+                            if (date.isBlank() || time.isBlank() || courtRoom.isBlank()) {
+                                Toast.makeText(context, "Fill all required fields", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+
+                            onSave(
+                                Hearing(
+                                    caseId,
+                                    caseTitle,
+                                    caseNumber,
+                                    date,
+                                    time,
+                                    courtRoom,
+                                    purpose,
+                                    notes,
+                                    reminders
+                                )
+                            )
+
+                            Toast.makeText(context, "Hearing added", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.weight(1f).height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen)
+                    ) {
+                        Text("Add Hearing", color = Color.White, fontWeight = FontWeight.Bold)
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text("Hearing Details", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = purpose,
-                            onValueChange = { purpose = it },
-                            label = { Text("Purpose", fontWeight = FontWeight.SemiBold) },
-                            placeholder = { Text("e.g., Arguments on Evidence") },
-                            leadingIcon = { Icon(Icons.Filled.Description, contentDescription = null, tint = DarkGreen) },
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        OutlinedTextField(
-                            value = notes,
-                            onValueChange = { notes = it },
-                            label = { Text("Notes", fontWeight = FontWeight.SemiBold) },
-                            placeholder = { Text("Add any notes or preparation items...") },
-                            modifier = Modifier.fillMaxWidth().height(120.dp)
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Filled.Notifications, contentDescription = null, tint = DarkGreen)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Set Reminders", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-                        }
-
-                        Spacer(modifier = Modifier.height(12.dp))
-
-                        ReminderRow("1 day before", reminders.oneDay) { checked -> reminders = reminders.copy(oneDay = checked) }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ReminderRow("2 hours before", reminders.twoHours) { checked -> reminders = reminders.copy(twoHours = checked) }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        ReminderRow("30 minutes before", reminders.thirtyMin) { checked -> reminders = reminders.copy(thirtyMin = checked) }
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(20.dp))
-
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = onBack, modifier = Modifier.weight(1f).height(56.dp)) {
-                        Text("Cancel", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
-                    }
-
-                    Button(onClick = {
-                        if (date.isBlank()) {
-                            Toast.makeText(context, "Please select date", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        if (time.isBlank()) {
-                            Toast.makeText(context, "Please select time", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        if (courtRoom.isBlank()) {
-                            Toast.makeText(context, "Please enter court room", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-
-                        val hearing = Hearing(
-                            caseId = caseId,
-                            caseTitle = caseTitle,
-                            caseNumber = caseNumber,
-                            date = date,
-                            time = time,
-                            courtRoom = courtRoom,
-                            purpose = purpose,
-                            notes = notes,
-                            reminders = reminders
-                        )
-
-                        onAddHearing(hearing)
-                        Toast.makeText(context, "Hearing added", Toast.LENGTH_SHORT).show()
-                    }, modifier = Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = DarkGreen)) {
-                        Text("Add Hearing", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(Modifier.height(24.dp))
             }
         }
     }
+}
+
+/* ---------------- HELPERS ---------------- */
+
+@Composable
+private fun SectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
+    Card(colors = CardDefaults.cardColors(containerColor = CardWhite)) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
+            Spacer(Modifier.height(12.dp))
+            content()
+        }
+    }
+}
+
+@Composable
+private fun PickerField(label: String, value: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = {},
+        readOnly = true,
+        label = { Text(label) },
+        leadingIcon = { Icon(icon, null, tint = DarkGreen) },
+        trailingIcon = {
+            IconButton(onClick = onClick) {
+                Icon(Icons.Filled.Edit, null, tint = DarkGreen)
+            }
+        },
+        modifier = Modifier.fillMaxWidth()
+    )
 }
 
 @Composable
@@ -269,13 +275,12 @@ private fun ReminderRow(label: String, checked: Boolean, onChange: (Boolean) -> 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Color(0xFFF7F7F8))
             .clickable { onChange(!checked) }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = Color(0xFF1F2937))
-        Checkbox(checked = checked, onCheckedChange = onChange, colors = CheckboxDefaults.colors(checkedColor = DarkGreen))
+        Text(label, fontWeight = FontWeight.SemiBold)
+        Checkbox(checked = checked, onCheckedChange = onChange)
     }
 }

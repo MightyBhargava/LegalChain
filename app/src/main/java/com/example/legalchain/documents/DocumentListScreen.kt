@@ -2,6 +2,7 @@
 
 package com.example.legalchain.documents
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -9,13 +10,33 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,35 +47,22 @@ private val PAGE_BG = Color(0xFFF5F6F7)
 private val CARD_WHITE = Color.White
 private val MUTED = Color(0xFF6B7280)
 
-private data class DocItem(
-    val id: String,
-    val name: String,
-    val type: String,
-    val size: String,
-    val caseName: String,
-    val uploadedAt: String,
-    val category: String
-)
-
-private fun sampleDocs() = listOf(
-    DocItem("1", "FIR_Copy.pdf", "pdf", "245 KB", "Singh vs. State", "Dec 10, 2024", "FIR"),
-    DocItem("2", "Evidence_Photos.jpg", "image", "1.8 MB", "Singh vs. State", "Dec 8, 2024", "Evidence"),
-    DocItem("3", "Bank_Statements.pdf", "pdf", "890 KB", "Singh vs. State", "Dec 5, 2024", "Evidence"),
-    DocItem("4", "Property_Deed.pdf", "pdf", "2.1 MB", "Sharma Property", "Dec 3, 2024", "Petition"),
-    DocItem("5", "Court_Order_Nov.pdf", "pdf", "156 KB", "Singh vs. State", "Nov 28, 2024", "Orders"),
-    DocItem("6", "Witness_Statement.docx", "doc", "78 KB", "Singh vs. State", "Nov 25, 2024", "Evidence")
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DocumentListScreen(
     onBack: () -> Unit = {},
     onUpload: () -> Unit = {},
     onOpenCategory: (String) -> Unit = {},
-    onOpenDocument: (String) -> Unit = {}
+    onOpenDocument: (String) -> Unit = {},
+    onNavigate: (String) -> Unit = {}
 ) {
-    val docs = remember { sampleDocs() }
+    val docs by DocumentRepository.documents.collectAsState()
     var query by remember { mutableStateOf("") }
+
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    val role = prefs.getString("userRole", "client") ?: "client"
+    val isLawyer = role == "lawyer"
 
     val filtered = remember(query, docs) {
         if (query.isBlank()) docs
@@ -89,14 +97,98 @@ fun DocumentListScreen(
                 scrollBehavior = scrollBehavior
             )
         },
+        bottomBar = {
+            NavigationBar(containerColor = CARD_WHITE, tonalElevation = 4.dp) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("home") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Home,
+                            contentDescription = "Home",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Home", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("ai/insights") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "AI Insights",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("AI Insights", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("cases") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Folder,
+                            contentDescription = "Cases",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Cases", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { /* already here */ },
+                    icon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Article,
+                            contentDescription = "Docs",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Docs", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        if (isLawyer) onNavigate("chat/lawyer") else onNavigate("chat/client")
+                    },
+                    icon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = "Chat",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Chat", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("profile") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Person,
+                            contentDescription = "Profile",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Profile", color = Color.Black, fontWeight = FontWeight.Bold) }
+                )
+            }
+        },
         containerColor = PAGE_BG
     ) { padding ->
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            contentPadding = PaddingValues(bottom = 90.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            contentPadding = PaddingValues(bottom = 110.dp, start = 12.dp, end = 12.dp, top = 6.dp)
         ) {
             item {
                 Surface(color = CARD_WHITE, tonalElevation = 2.dp) {
@@ -167,16 +259,21 @@ fun DocumentListScreen(
 }
 
 @Composable
-private fun DocumentRow(item: DocItem, onOpen: () -> Unit) {
+private fun DocumentRow(item: Document, onOpen: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onOpen() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CARD_WHITE),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
-        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             val bg = when (item.type) {
                 "pdf" -> Color(0xFFFFF1F0)
                 "image" -> Color(0xFFE8F3FF)
@@ -186,8 +283,8 @@ private fun DocumentRow(item: DocItem, onOpen: () -> Unit) {
 
             Box(
                 modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .size(58.dp)
+                    .clip(RoundedCornerShape(14.dp))
                     .background(bg),
                 contentAlignment = Alignment.Center
             ) {
@@ -202,8 +299,9 @@ private fun DocumentRow(item: DocItem, onOpen: () -> Unit) {
             Spacer(Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.name, fontWeight = FontWeight.Medium, fontSize = 15.sp, maxLines = 1)
-                Text(item.caseName, fontSize = 13.sp, color = MUTED)
+                Text(item.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, maxLines = 1)
+                Spacer(Modifier.height(4.dp))
+                Text(item.caseName, fontSize = 13.sp, color = MUTED, maxLines = 1)
                 Spacer(Modifier.height(6.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(item.size, fontSize = 12.sp, color = MUTED)
@@ -212,7 +310,7 @@ private fun DocumentRow(item: DocItem, onOpen: () -> Unit) {
                 }
             }
 
-            Icon(Icons.Filled.MoreVert, contentDescription = "More", tint = DARK_GREEN)
+            Icon(Icons.Filled.ChevronRight, contentDescription = "Open", tint = DARK_GREEN)
         }
     }
 }

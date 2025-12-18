@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.Article
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -54,7 +55,9 @@ fun CaseListScreen(
     isLawyer: Boolean,
     onAddCase: () -> Unit,
     onOpenCase: (String) -> Unit,
-    onBack: () -> Unit = {}
+    onBack: () -> Unit = {},
+    onNavigate: (String) -> Unit = {},
+    onBrowseCategories: () -> Unit = {}
 ) {
     val allCases = remember { sampleCases() }
 
@@ -100,6 +103,90 @@ fun CaseListScreen(
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = DarkGreen)
             )
+        },
+        bottomBar = {
+            NavigationBar(containerColor = CardWhite, tonalElevation = 4.dp) {
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("home") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Home,
+                            contentDescription = "Home",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Home", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("ai/insights") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.AutoAwesome,
+                            contentDescription = "AI Insights",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("AI Insights", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = true,
+                    onClick = { /* already here */ },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Folder,
+                            contentDescription = "Cases",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Cases", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("docs") },
+                    icon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Article,
+                            contentDescription = "Docs",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Docs", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = {
+                        if (isLawyer) onNavigate("chat/lawyer") else onNavigate("chat/client")
+                    },
+                    icon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Chat,
+                            contentDescription = "Chat",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Chat", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+                NavigationBarItem(
+                    selected = false,
+                    onClick = { onNavigate("profile") },
+                    icon = {
+                        Icon(
+                            Icons.Filled.Person,
+                            contentDescription = "Profile",
+                            tint = Color.Black,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    label = { Text("Profile", color = PrimaryBlack, fontWeight = FontWeight.Bold) }
+                )
+            }
         },
         containerColor = PageBg
     ) { innerPadding ->
@@ -166,7 +253,8 @@ fun CaseListScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp),
+                    .padding(horizontal = 12.dp)
+                    .clickable { onBrowseCategories() },
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 elevation = CardDefaults.cardElevation(4.dp)
@@ -193,9 +281,7 @@ fun CaseListScreen(
                         Text("Civil, Criminal, Corporate, Family", color = MutedGray, fontSize = 13.sp)
                     }
 
-                    IconButton(onClick = { /* open categories */ }) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "Open categories")
-                    }
+                    Icon(Icons.Filled.ChevronRight, contentDescription = "Open categories", tint = DarkGreen)
                 }
             }
 
