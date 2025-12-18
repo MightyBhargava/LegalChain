@@ -1,6 +1,9 @@
 package com.example.legalchain.documents
 
+import android.database.Cursor
 import android.net.Uri
+import android.provider.OpenableColumns
+import android.text.format.Formatter
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -20,11 +23,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /* ---------------- COLORS ---------------- */
 
@@ -77,6 +85,8 @@ fun DocumentUploadScreen(
 
     var showCaseDialog by remember { mutableStateOf(false) }
     var showCategoryDialog by remember { mutableStateOf(false) }
+
+    val context = LocalContext.current
 
     /* -------- File Picker -------- */
 
@@ -248,10 +258,60 @@ fun DocumentUploadScreen(
             /* -------- Actions -------- */
             item {
                 Button(
-                    onClick = onNavigateToDocuments,
+                    onClick = {
+                        val nowLabel = SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(Date())
+                        val resolver = context.contentResolver
+
+                        val newDocs = selectedFiles.mapIndexedNotNull { index, uri ->
+                            val id = System.currentTimeMillis().toString() + "_$index"
+
+                            val name = getFileName(context, uri) ?: "Document_$id"
+                            val ext = name.substringAfterLast('.', missingDelimiterValue = "").lowercase(Locale.getDefault())
+                            val storedFileName = if (ext.isNotBlank()) "$id.$ext" else id
+
+                            try {
+                                val input = resolver.openInputStream(uri) ?: return@mapIndexedNotNull null
+                                val outFile = File(context.filesDir, storedFileName)
+                                outFile.outputStream().use { output ->
+                                    input.use { it.copyTo(output) }
+                                }
+
+                                val sizeLabel = Formatter.formatShortFileSize(context, outFile.length())
+
+                                val type = when (ext) {
+                                    "pdf" -> "pdf"
+                                    "jpg", "jpeg", "png" -> "image"
+                                    "doc", "docx" -> "doc"
+                                    else -> "file"
+                                }
+
+                                Document(
+                                    id = id,
+                                    name = name,
+                                    type = type,
+                                    size = sizeLabel,
+                                    caseName = selectedCase,
+                                    uploadedAt = nowLabel,
+                                    category = category.ifEmpty { "Other" },
+                                    fileName = storedFileName,
+                                    tags = tags
+                                )
+                            } catch (_: Exception) {
+                                null
+                            }
+                        }
+
+                        if (newDocs.isNotEmpty()) {
+                            DocumentRepository.addDocuments(newDocs, context)
+                        }
+
+                        onNavigateToDocuments()
+                    },
                     enabled = selectedFiles.isNotEmpty() && selectedCase.isNotEmpty(),
                     colors = ButtonDefaults.buttonColors(containerColor = DarkGreen),
-                    modifier = Modifier.fillMaxWidth().height(54.dp)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
                 ) {
                     Text("Upload All", fontWeight = FontWeight.Bold)
                 }
@@ -344,4 +404,16 @@ private fun SelectionDialog(title: String, items: List<String>, onSelect: (Strin
             }
         }
     }
+}
+
+private fun getFileName(context: android.content.Context, uri: Uri): String? {
+    var name: String? = null
+    val cursor: Cursor? = context.contentResolver.query(uri, null, null, null, null)
+    cursor?.use {
+        val nameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (nameIndex != -1 && it.moveToFirst()) {
+            name = it.getString(nameIndex)
+        }
+    }
+    return name
 }
