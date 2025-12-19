@@ -11,6 +11,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Article
+import androidx.compose.material.icons.automirrored.filled.Chat
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -180,8 +183,8 @@ fun SearchScreen(
                 placeholder = {
                     Text(
                         "Search cases, lawyers, documents...",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Light,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MutedText
                     )
                 },
@@ -213,8 +216,8 @@ fun SearchScreen(
                     unfocusedBorderColor = MutedText.copy(alpha = 0.3f)
                 ),
                 textStyle = androidx.compose.ui.text.TextStyle(
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Light
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
                 )
             )
 
@@ -265,16 +268,16 @@ fun SearchScreen(
                     Spacer(Modifier.width(8.dp))
                     Text(
                         "Recent",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.SemiBold,
                         color = PrimaryText
                     )
                 }
                 TextButton(onClick = { /* Clear all */ }) {
                     Text(
                         "Clear All",
-                        fontSize = 17.sp,
-                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
                         color = DarkGreen
                     )
                 }
@@ -305,8 +308,8 @@ fun SearchScreen(
                             Spacer(Modifier.width(12.dp))
                             Text(
                                 search,
-                                fontSize = 19.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = PrimaryText
                             )
                         }
@@ -320,7 +323,7 @@ fun SearchScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    Icons.Filled.TrendingUp,
+                    Icons.AutoMirrored.Filled.TrendingUp,
                     contentDescription = null,
                     tint = MutedText,
                     modifier = Modifier.size(20.dp)
@@ -328,8 +331,8 @@ fun SearchScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(
                     "Trending",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.SemiBold,
                     color = PrimaryText
                 )
             }
@@ -345,17 +348,13 @@ fun SearchScreen(
                         label = {
                             Text(
                                 item,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Medium,
                                 color = PrimaryText
                             )
                         },
                         colors = AssistChipDefaults.assistChipColors(
                             containerColor = CardWhite
-                        ),
-                        border = AssistChipDefaults.assistChipBorder(
-                            borderColor = MutedText.copy(alpha = 0.3f),
-                            borderWidth = 1.dp
                         ),
                         shape = RoundedCornerShape(20.dp)
                     )
@@ -406,8 +405,8 @@ private fun QuickCategoryCard(
             Spacer(Modifier.height(8.dp))
             Text(
                 label,
-                fontSize = 17.sp,
-                fontWeight = FontWeight.Bold,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Medium,
                 color = PrimaryText
             )
         }
