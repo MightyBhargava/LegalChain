@@ -1,5 +1,6 @@
 package com.example.legalchain.cases
 
+import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,7 +21,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -28,26 +32,6 @@ private val PageBg = Color(0xFFF5F6F7)
 private val CardWhite = Color.White
 private val MutedGray = Color(0xFF6B7280)
 private val PrimaryBlack = Color(0xFF0F172A)
-
-private data class CaseItem(
-    val id: String,
-    val title: String,
-    val caseNumber: String,
-    val type: String,
-    val status: String,
-    val court: String,
-    val nextHearing: String,
-    val client: String
-)
-
-private fun sampleCases() = listOf(
-    CaseItem("1", "Singh vs. State of Maharashtra", "CR/2024/1234", "Criminal", "active", "High Court Mumbai", "Dec 15, 2024", "Mr. Vikram Singh"),
-    CaseItem("2", "Sharma Property Dispute", "CV/2024/5678", "Civil", "pending", "District Court Delhi", "Dec 18, 2024", "Mrs. Priya Sharma"),
-    CaseItem("3", "TechCorp Merger Agreement", "CO/2024/9012", "Corporate", "active", "NCLT Mumbai", "Dec 20, 2024", "TechCorp Pvt Ltd"),
-    CaseItem("4", "Kumar Divorce Settlement", "FM/2024/3456", "Family", "pending", "Family Court", "Dec 22, 2024", "Mr. Anil Kumar"),
-    CaseItem("5", "Patel vs. Patel", "CV/2024/7890", "Civil", "closed", "District Court", "-", "Mr. Rajesh Patel"),
-    CaseItem("6", "State vs. Mehta", "CR/2024/2345", "Criminal", "active", "Sessions Court", "Dec 25, 2024", "Mr. Suresh Mehta")
-)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -59,17 +43,24 @@ fun CaseListScreen(
     onNavigate: (String) -> Unit = {},
     onBrowseCategories: () -> Unit = {}
 ) {
-    val allCases = remember { sampleCases() }
+    val allCases by CaseRepository.cases.collectAsState()
+
+    val context = LocalContext.current
+    val prefs = remember { context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE) }
+    val deletedIds = prefs.getStringSet("deleted_case_ids", emptySet()) ?: emptySet()
 
     var query by remember { mutableStateOf("") }
     var activeFilter by remember { mutableStateOf("All") }
     val filters = listOf("All", "Active", "Pending", "Closed")
 
-    val filteredCases = remember(query, activeFilter, allCases) {
+    val filteredCases = remember(query, activeFilter, allCases, deletedIds) {
         allCases.filter { c ->
+            val notDeleted = !deletedIds.contains(c.id)
             val fMatch = activeFilter == "All" || c.status.equals(activeFilter, ignoreCase = true)
-            val qMatch = query.isBlank() || c.title.contains(query, true) || c.caseNumber.contains(query, true)
-            fMatch && qMatch
+            val qMatch = query.isBlank() ||
+                    c.title.contains(query, true) ||
+                    c.caseNumber.contains(query, true)
+            notDeleted && fMatch && qMatch
         }
     }
 
@@ -86,7 +77,6 @@ fun CaseListScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        // use AutoMirrored ArrowBack to avoid deprecation warning
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Back",
@@ -189,57 +179,55 @@ fun CaseListScreen(
             }
         },
         containerColor = PageBg
-    ) { innerPadding ->
-
+    ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding)
+                .padding(padding)
+                .background(PageBg)
         ) {
-            Surface(
-                color = CardWhite,
-                tonalElevation = 2.dp,
-                modifier = Modifier.fillMaxWidth()
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = CardWhite),
+                elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
-                            placeholder = { Text("Search cases...") },
-                            singleLine = true,
-                            modifier = Modifier.weight(1f)
-                        )
+                Column(Modifier.padding(12.dp)) {
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search", tint = DarkGreen) },
+                        placeholder = { Text("Search by title or case number", fontSize = 14.sp) },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(52.dp)
+                    )
 
-                        IconButton(
-                            onClick = { /* open filter screen */ },
-                            modifier = Modifier
-                                .size(48.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF1F1F1))
-                        ) {
-                            Icon(Icons.Filled.FilterList, contentDescription = "Filter")
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(Modifier.height(10.dp))
 
                     Row(
-                        modifier = Modifier.horizontalScroll(rememberScrollState())
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         filters.forEach { f ->
                             val selected = activeFilter == f
-                            AssistChip(
+                            FilterChip(
+                                selected = selected,
                                 onClick = { activeFilter = f },
-                                label = { Text(f, fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal, fontSize = 13.sp) },
-                                modifier = Modifier.padding(end = 8.dp),
-                                colors = AssistChipDefaults.assistChipColors(
-                                    containerColor = if (selected) DarkGreen else Color(0xFFF2F2F2),
+                                label = {
+                                    Text(
+                                        f,
+                                        fontSize = 12.sp,
+                                        fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
+                                    )
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    containerColor = if (selected) DarkGreen else Color(0xFFF3F4F6),
                                     labelColor = if (selected) Color.White else MutedGray
                                 )
                             )
@@ -259,9 +247,10 @@ fun CaseListScreen(
                 colors = CardDefaults.cardColors(containerColor = CardWhite),
                 elevation = CardDefaults.cardElevation(4.dp)
             ) {
-                Row(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
@@ -314,62 +303,51 @@ fun CaseListScreen(
 }
 
 @Composable
-private fun CaseCard(item: CaseItem, isLawyer: Boolean, onClick: () -> Unit) {
+private fun CaseCard(item: CaseModel, isLawyer: Boolean, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { onClick() },
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = CardWhite),
-        elevation = CardDefaults.cardElevation(4.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(14.dp),
-            verticalAlignment = Alignment.Top
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(56.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(Color(0xFFF2F4F6)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Filled.Work, contentDescription = null, tint = DarkGreen, modifier = Modifier.size(26.dp))
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color(0xFFE0F2FE)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Filled.Gavel, contentDescription = null, tint = DarkGreen)
+                }
+
+                Spacer(Modifier.width(10.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(item.title, fontWeight = FontWeight.SemiBold, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Spacer(Modifier.height(2.dp))
+                    Text(item.caseNumber, fontSize = 12.sp, color = MutedGray)
+                }
+
+                StatusPill(item.status)
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(Modifier.height(10.dp))
 
-            Column(modifier = Modifier.weight(1f)) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(item.title, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = PrimaryBlack)
-                    StatusBadge(status = item.status)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column {
+                    Text("Court", fontSize = 11.sp, color = MutedGray)
+                    Text(item.court.ifBlank { "-" }, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
-
-                Spacer(modifier = Modifier.height(6.dp))
-
-                Text("${item.caseNumber} • ${item.type}", color = MutedGray, fontSize = 13.sp)
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Filled.Apartment, contentDescription = "Court", tint = MutedGray, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(item.court, color = MutedGray, fontSize = 12.sp)
-                }
-
-                if (item.nextHearing != "-") {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.CalendarMonth, contentDescription = "Next hearing", tint = DarkGreen, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Next: ${item.nextHearing}", fontSize = 13.sp, fontWeight = FontWeight.Medium, color = if (isLawyer) DarkGreen else Color(0xFF0D9488))
-                    }
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("Next Hearing", fontSize = 11.sp, color = MutedGray)
+                    Text(item.nextHearing.ifBlank { "-" }, fontSize = 13.sp, fontWeight = FontWeight.Medium)
                 }
             }
         }
@@ -377,17 +355,28 @@ private fun CaseCard(item: CaseItem, isLawyer: Boolean, onClick: () -> Unit) {
 }
 
 @Composable
-private fun StatusBadge(status: String) {
-    val (bg, txt) = when (status.lowercase()) {
-        "active" -> Pair(Color(0xFFEFF7EF), Color(0xFF065F46))
-        "pending" -> Pair(Color(0xFFFEF7E0), Color(0xFF92400E))
-        "closed" -> Pair(Color(0xFFF3F4F6), Color(0xFF374151))
-        else -> Pair(Color(0xFFF3F4F6), Color(0xFF374151))
+private fun StatusPill(status: String) {
+    val (bg, text) = when (status.lowercase()) {
+        "active" -> Color(0xFFDCFCE7) to Color(0xFF16A34A)
+        "pending" -> Color(0xFFFFF7ED) to Color(0xFFEA580C)
+        "closed" -> Color(0xFFF3F4F6) to Color(0xFF6B7280)
+        else -> Color(0xFFE5E7EB) to Color(0xFF4B5563)
     }
 
-    Surface(shape = RoundedCornerShape(14.dp), color = bg) {
-        Box(modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp), contentAlignment = Alignment.Center) {
-            Text(text = status.replaceFirstChar { it.uppercase() }, color = txt, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-        }
+    Row(
+        modifier = Modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(bg)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(6.dp)
+                .clip(CircleShape)
+                .background(text)
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(status.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }, color = text, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
     }
 }

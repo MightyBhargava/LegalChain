@@ -80,7 +80,7 @@ fun HomeScreen(
                         modifier = Modifier.size(22.dp)
                     )
                 },
-                "/cases/1"
+                "cases/1/details"
             ),
             ActivityItem(
                 "Case status updated",
@@ -93,7 +93,7 @@ fun HomeScreen(
                         modifier = Modifier.size(22.dp)
                     )
                 },
-                "/cases/2"
+                "cases/2/details"
             )
         )
     }
@@ -175,7 +175,7 @@ fun HomeScreen(
                 )
                 NavigationBarItem(
                     selected = false,
-                    onClick = { navigate("/ai/insights") },
+                    onClick = { navigate("ai/insights") },
                     icon = { Icon(Icons.Filled.AutoAwesome, contentDescription = "AI Insights", tint = Color.Black, modifier = Modifier.size(22.dp)) },
                     label = { Text("AI Insights", color = PrimaryText, fontWeight = FontWeight.Bold) }
                 )
@@ -197,9 +197,9 @@ fun HomeScreen(
                     selected = false,
                     onClick = {
                         // route depends on logged-in role:
-                        // - lawyer sees list of clients (/chat/lawyer)
-                        // - client opens chat with assigned lawyer (/chat/client)
-                        if (isLawyer) navigate("/chat/lawyer") else navigate("/chat/client")
+                        // - lawyer sees list of clients (chat/lawyer)
+                        // - client opens chat with assigned lawyer (chat/client)
+                        if (isLawyer) navigate("chat/lawyer") else navigate("chat/client")
                     },
                     icon = {
                         Icon(
@@ -353,7 +353,7 @@ fun HomeScreen(
 
                                 Spacer(Modifier.height(10.dp))
 
-                                TextButton(onClick = { navigate("/ai/daily") }) {
+                                TextButton(onClick = { navigate("ai/daily") }) {
                                     Text("View full analysis", color = DarkGreen, fontWeight = FontWeight.Bold)
                                     Icon(Icons.Filled.ChevronRight, contentDescription = "Open", tint = Color.Black)
                                 }
@@ -376,13 +376,13 @@ fun HomeScreen(
                         QuickActionCardExpanded(
                             icon = { Icon(Icons.Filled.Add, contentDescription = "Add", tint = Color.Black, modifier = Modifier.size(22.dp)) },
                             label = "New Case",
-                            onClick = { navigate("/cases/add") }
+                            onClick = { navigate("cases/add") }
                         )
 
                         QuickActionCardExpanded(
                             icon = { Icon(Icons.Filled.Event, contentDescription = "Event", tint = Color.Black, modifier = Modifier.size(22.dp)) },
                             label = "Add Hearing",
-                            onClick = { navigate("/hearings/add") } // booking route exists in MainActivity
+                            onClick = { navigate("hearings/add") } // booking route exists in MainActivity
                         )
                     }
                 }
@@ -394,7 +394,7 @@ fun HomeScreen(
                     Text("View All",
                         color = DarkGreen,
                         fontWeight = FontWeight.Bold,
-                        modifier = Modifier.clickable { navigate("/cases") })
+                        modifier = Modifier.clickable { navigate("cases") })
                 }
                 Spacer(Modifier.height(8.dp))
             }
