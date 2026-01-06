@@ -52,16 +52,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         dataStoreManager = DataStoreManager(applicationContext)
 
+
         setContent {
             AppContent(dataStoreManager)
         }
+
+    }
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun AppContent(dataStoreManager: DataStoreManager) {
-
+private fun AppContent(
+    dataStoreManager: DataStoreManager
+)
+ {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val isDarkMode by dataStoreManager.isDarkModeFlow.collectAsState(false)
@@ -92,8 +100,11 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                 composable("login_lawyer") { LoginScreen(navController, true) }
                 composable("login_client") { LoginScreen(navController, false) }
                 composable("register") { RegisterScreen(navController) }
-                composable("forgot_password") { ForgotPasswordScreen(navController) }
-
+                composable("forgot_password") {
+                    ForgotPasswordScreen(
+                        navController = navController
+                    )
+                }
                 /* ---------- HOME ---------- */
                 composable("home") {
                     HomeScreen(
@@ -130,7 +141,6 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                         }
                     )
                 }
-
                 /* ---------- NOTIFICATIONS ---------- */
                 composable("notifications") {
                     NotificationScreen(

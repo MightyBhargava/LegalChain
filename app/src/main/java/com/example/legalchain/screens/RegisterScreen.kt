@@ -2,6 +2,17 @@ package com.example.legalchain.screens
 
 import android.net.Uri
 import android.widget.Toast
+import com.example.legalchain.network.ApiClient
+import com.example.legalchain.network.ApiService
+import com.example.legalchain.network.RegisterResponse
+import com.example.legalchain.utils.uriToFile
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.RequestBody.Companion.asRequestBody
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -66,6 +77,7 @@ fun RegisterScreen(navController: NavHostController? = null) {
     // base fields
     var fullName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     // location fields
@@ -85,6 +97,9 @@ fun RegisterScreen(navController: NavHostController? = null) {
     var selectedFileTooLarge by remember { mutableStateOf(false) }
 
     var isSubmitted by remember { mutableStateOf(false) }
+
+    var showSuccessDialog by remember { mutableStateOf(false) }
+
 
     // file size limit
     val maxBytes = 5L * 1024L * 1024L // 5 MB
@@ -388,6 +403,32 @@ fun RegisterScreen(navController: NavHostController? = null) {
                     leadingIcon = {
                         Icon(
                             imageVector = Icons.Outlined.Email,
+                            contentDescription = null,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    colors = fieldColors,
+                    shape = RoundedCornerShape(16.dp)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+
+                OutlinedTextField(
+                    value = phone,
+                    onValueChange = { phone = it },
+                    label = {
+                        Text(
+                            "Phone Number",
+                            fontSize = 15.sp,
+                            color = ThickBlack,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    placeholder = { Text("Enter mobile number", fontSize = 14.sp) },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Outlined.Phone,
                             contentDescription = null,
                             modifier = Modifier.size(22.dp)
                         )
@@ -833,41 +874,68 @@ fun RegisterScreen(navController: NavHostController? = null) {
 
                 Button(
                     onClick = {
-                        if (role == RegisterRole.LAWYER) {
-                            // require file uploaded and not too large
-                            if (selectedFileUri == null) {
-                                Toast.makeText(context, "Please upload proof documents", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            if (selectedFileTooLarge) {
-                                Toast.makeText(context, "Selected file is too large", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            // mark submitted and navigate to login, removing register from back stack
-                            isSubmitted = true
-                            navController?.navigate("login") {
-                                popUpTo("register") { inclusive = true }
-                                launchSingleTop = true
-                            }
-                        } else {
-                            // navigate to login for client and remove register from back stack
-                            navController?.navigate("login") {
-                                popUpTo("register") { inclusive = true }
-                                launchSingleTop = true
-                            }
+
+                        if (fullName.isBlank() || email.isBlank() || phone.isBlank() || password.isBlank()) {
+                            Toast.makeText(context, "Fill all required fields", Toast.LENGTH_SHORT).show()
+                            return@Button
                         }
-                    },
-                    enabled = agreedTerms && role != null && !(role == RegisterRole.LAWYER && selectedFileTooLarge),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = DarkGreen,
-                        contentColor = Color.White,
-                        disabledContainerColor = DarkGreen.copy(alpha = 0.5f),
-                        disabledContentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp)
+
+                        if (phone.length < 10) {
+                            Toast.makeText(context, "Enter valid phone number", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        if (role == RegisterRole.LAWYER && selectedFileUri == null) {
+                            Toast.makeText(context, "Upload document", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        val api = ApiClient.apiService
+
+                        val documentPart =
+                            if (role == RegisterRole.LAWYER) {
+                                val file = uriToFile(selectedFileUri!!, context)
+                                val req = file.asRequestBody("application/octet-stream".toMediaType())
+                                MultipartBody.Part.createFormData("document", file.name, req)
+                            } else null
+
+                        api.register(
+                            body(role!!.name.lowercase()),
+                            body(fullName),
+                            body(email),
+                            body(phone),          // ✅ ADD THIS
+                            body(password),
+
+                            if (role == RegisterRole.LAWYER) body(barId) else null,
+                            if (role == RegisterRole.LAWYER) body(country) else null,
+                            if (role == RegisterRole.LAWYER) body(lawyerState) else null,
+                            if (role == RegisterRole.LAWYER) body(district) else null,
+                            if (role == RegisterRole.LAWYER) body(address) else null,
+
+                            documentPart
+                        ).enqueue(object : Callback<RegisterResponse> {
+
+                            override fun onResponse(
+                                call: Call<RegisterResponse>,
+                                response: Response<RegisterResponse>
+                            ) {
+                                if (response.isSuccessful && response.body()?.status == "success") {
+                                    showSuccessDialog = true
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        response.body()?.message ?: "Registration failed",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+
+
+                            override fun onFailure(call: Call<RegisterResponse>, t: Throwable) {
+                                Toast.makeText(context, "Network error", Toast.LENGTH_SHORT).show()
+                            }
+                        })
+                    }
                 ) {
                     Text(
                         text = if (role == RegisterRole.LAWYER) "Submit for Verification" else "Create Account",
@@ -906,6 +974,37 @@ fun RegisterScreen(navController: NavHostController? = null) {
                 Spacer(modifier = Modifier.height(12.dp))
             }
         }
+    }
+    // ================= SUCCESS DIALOG =================
+    if (showSuccessDialog) {
+        AlertDialog(
+            onDismissRequest = { /* prevent dismiss */ },
+            title = {
+                Text(
+                    text = "Registration Successful",
+                    fontWeight = FontWeight.Bold
+                )
+            },
+            text = {
+                Text(
+                    "Your account has been created successfully.\n\nPlease login to continue."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showSuccessDialog = false
+
+                        navController?.navigate("role_selection") {
+                            popUpTo("register") { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    }
+                ) {
+                    Text("Go to Login")
+                }
+            }
+        )
     }
 }
 
@@ -1081,3 +1180,7 @@ private fun StepRow(text: String) {
         )
     }
 }
+private fun body(value: String): okhttp3.RequestBody {
+    return value.toRequestBody("text/plain".toMediaType())
+}
+

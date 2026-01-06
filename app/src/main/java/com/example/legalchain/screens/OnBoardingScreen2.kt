@@ -39,31 +39,43 @@ import kotlinx.coroutines.launch
 private val DarkGreen = Color(0xFF004D40)
 private val AccentGreen = Color(0xFF26A69A)
 private val AccentAmber = Color(0xFFFFA000)
-
 @Composable
 fun OnboardingScreen2(navController: NavHostController? = null) {
 
     val configuration = LocalConfiguration.current
     val density = LocalDensity.current
-    val screenWidthPx = with(density) { configuration.screenWidthDp.dp.toPx() }
+    val screenWidth = configuration.screenWidthDp.dp
+    val screenWidthPx = with(density) { screenWidth.toPx() }
+
+    val illustrationSize = screenWidth * 0.65f
+    val outerCircle = illustrationSize
+    val middleCircle = illustrationSize * 0.82f
+    val innerCircle = illustrationSize * 0.65f
 
     val offsetX = remember { Animatable(screenWidthPx) }
     val scope = rememberCoroutineScope()
-
     val brainRotation = remember { Animatable(0f) }
 
+    /* ---------- ENTRY SLIDE ---------- */
     LaunchedEffect(Unit) {
         offsetX.animateTo(
             targetValue = 0f,
-            animationSpec = tween(300, easing = LinearEasing)
+            animationSpec = tween(
+                durationMillis = 300,
+                easing = LinearEasing
+            )
         )
     }
 
-    LaunchedEffect("brain-rotation") {
+    /* ---------- ROTATION ---------- */
+    LaunchedEffect(Unit) {
         while (true) {
             brainRotation.animateTo(
                 targetValue = 360f,
-                animationSpec = tween(2000, easing = LinearEasing)
+                animationSpec = tween(
+                    durationMillis = 2000,
+                    easing = LinearEasing
+                )
             )
             brainRotation.snapTo(0f)
         }
@@ -82,13 +94,13 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // TOP / ILLUSTRATION
+            /* ---------- TOP ILLUSTRATION ---------- */
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(660.dp)
+                    .weight(1f)
                     .background(
-                        brush = Brush.verticalGradient(
+                        Brush.verticalGradient(
                             listOf(
                                 AccentGreen.copy(alpha = 0.08f),
                                 Color.White
@@ -97,25 +109,27 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
                     ),
                 contentAlignment = Alignment.Center
             ) {
+
                 Box(
-                    modifier = Modifier.size(260.dp),
+                    modifier = Modifier.size(illustrationSize),
                     contentAlignment = Alignment.Center
                 ) {
+
                     Box(
                         modifier = Modifier
-                            .size(220.dp)
-                            .background(AccentGreen.copy(alpha = 0.12f), CircleShape),
+                            .size(outerCircle)
+                            .background(AccentGreen.copy(0.12f), CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(180.dp)
-                                .background(AccentGreen.copy(alpha = 0.20f), CircleShape),
+                                .size(middleCircle)
+                                .background(AccentGreen.copy(0.2f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "🧠",
-                                fontSize = 56.sp,
+                                fontSize = (illustrationSize.value * 0.22f).sp,
                                 modifier = Modifier.graphicsLayer(
                                     rotationZ = brainRotation.value
                                 )
@@ -126,29 +140,27 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
                     FloatingIcon(
                         icon = Icons.Filled.AutoAwesome,
                         background = DarkGreen,
-                        offsetX = (-90).dp,
-                        offsetY = (-70).dp
+                        offsetX = -illustrationSize * 0.4f,
+                        offsetY = -illustrationSize * 0.3f
                     )
 
                     FloatingIcon(
                         icon = Icons.Filled.Notifications,
                         background = AccentAmber,
-                        offsetX = 95.dp,
+                        offsetX = illustrationSize * 0.4f,
                         offsetY = 0.dp
                     )
 
                     FloatingIcon(
                         icon = Icons.Filled.Description,
                         background = AccentGreen,
-                        offsetX = (-70).dp,
-                        offsetY = 70.dp
+                        offsetX = -illustrationSize * 0.3f,
+                        offsetY = illustrationSize * 0.3f
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.weight(1f))
-
-            // BOTTOM CONTENT
+            /* ---------- BOTTOM CONTENT ---------- */
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -156,58 +168,49 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
 
-                // dots
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 20.dp),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(Color(0xFFCFCFCF), RoundedCornerShape(4.dp))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .width(28.dp)
-                            .height(8.dp)
-                            .background(DarkGreen, RoundedCornerShape(4.dp))
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(Color(0xFFCFCFCF), RoundedCornerShape(4.dp))
-                    )
+                /* Dots */
+                Row(horizontalArrangement = Arrangement.Center) {
+                    repeat(3) { index ->
+                        Box(
+                            modifier = Modifier
+                                .then(
+                                    if (index == 1)
+                                        Modifier.width(28.dp).height(8.dp)
+                                    else Modifier.size(8.dp)
+                                )
+                                .background(
+                                    if (index == 1) DarkGreen else Color(0xFFCFCFCF),
+                                    RoundedCornerShape(4.dp)
+                                )
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
                 }
+
+                Spacer(Modifier.height(18.dp))
 
                 Text(
                     text = "AI-Powered Insights",
-                    fontSize = 26.sp,
+                    fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF111827),
                     textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(Modifier.height(8.dp))
 
                 Text(
                     text = "Get smart reminders, AI-generated summaries, document scanning with OCR, and predictive case analytics.",
-                    fontSize = 16.sp,
+                    fontSize = 15.sp,
                     lineHeight = 22.sp,
                     color = Color(0xFF4B5563),
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 8.dp)
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(22.dp))
+                Spacer(Modifier.height(22.dp))
 
-                // SIDE BY SIDE BUTTONS
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
 
@@ -216,42 +219,36 @@ fun OnboardingScreen2(navController: NavHostController? = null) {
                             scope.launch {
                                 offsetX.animateTo(
                                     targetValue = screenWidthPx,
-                                    animationSpec = tween(300, easing = LinearEasing)
+                                    animationSpec = tween(
+                                        durationMillis = 300,
+                                        easing = LinearEasing
+                                    )
                                 )
                                 navController?.popBackStack()
                             }
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = DarkGreen
-                        )
+                        modifier = Modifier.weight(1f).height(52.dp)
                     ) {
-                        Text("Back", fontSize = 18.sp)
+                        Text("Back", fontSize = 16.sp)
                     }
 
                     Button(
                         onClick = {
-                            // ✅ now go to role selection screen
                             navController?.navigate("role_selection")
                         },
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(54.dp),
+                        modifier = Modifier.weight(1f).height(52.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = DarkGreen,
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Get Started", fontSize = 18.sp)
+                        Text("Get Started", fontSize = 16.sp)
                     }
                 }
             }
         }
     }
 }
-
 @Composable
 private fun BoxScope.FloatingIcon(
     icon: ImageVector,
@@ -267,7 +264,9 @@ private fun BoxScope.FloatingIcon(
             .size(48.dp)
             .align(Alignment.Center)
             .offset(x = offsetX, y = offsetY)
-            .background(background, RoundedCornerShape(18.dp))
+            .background(background, RoundedCornerShape(16.dp))
             .padding(8.dp)
     )
 }
+
+

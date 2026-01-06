@@ -1,22 +1,20 @@
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
-
-    // REQUIRED for Kotlin 2.0+ (this removes your error)
-    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21"
+    id("org.jetbrains.kotlin.plugin.compose")
+    id("com.google.gms.google-services")   // ✅ REQUIRED
 }
 
 android {
     namespace = "com.example.legalchain"
-    compileSdk = 36
+    compileSdk = 34
 
     defaultConfig {
         applicationId = "com.example.legalchain"
         minSdk = 23
-        targetSdk = 36
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -44,7 +42,6 @@ android {
     }
 
     composeOptions {
-        // Compose compiler extension compatible with UI 1.4.x (safe)
         kotlinCompilerExtensionVersion = "1.5.14"
     }
 
@@ -56,35 +53,39 @@ android {
 }
 
 dependencies {
-    // Core
+
+    // -------- CORE --------
     implementation("androidx.core:core-ktx:1.12.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.6.2")
     implementation("androidx.activity:activity-compose:1.8.2")
 
-    // Compose UI (stable + compatible)
+    // -------- COMPOSE --------
     implementation("androidx.compose.ui:ui:1.5.4")
     implementation("androidx.compose.ui:ui-graphics:1.5.4")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
-
-    // Material 3
     implementation("androidx.compose.material3:material3:1.2.1")
-
-    // Material Icons Extended (ONLY this one)
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
-
-    // Navigation Compose
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // Optional: Accompanist Navigation Animation
-    implementation("com.google.accompanist:accompanist-navigation-animation:0.34.0")
-    implementation("androidx.datastore:datastore-preferences:1.1.0")
-    // Testing & debug
-    implementation("androidx.datastore:datastore-preferences:1.1.0")
-    implementation("androidx.compose.material:material-icons-extended")
-    testImplementation("junit:junit:4.13.2")
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.4")
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.5.4")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.4")
+
+    // -------- NAVIGATION --------
+    implementation("androidx.navigation:navigation-compose:2.7.7")
+
+    // -------- FIREBASE + GOOGLE SIGN-IN --------
+    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-analytics")
+    implementation("com.google.android.gms:play-services-auth:21.0.0")
+
+    // -------- NETWORK --------
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+
+    // -------- DATASTORE --------
+    implementation("androidx.datastore:datastore-preferences:1.1.0")
+
+    // -------- TEST --------
+    testImplementation("junit:junit:4.13.2")
 }
