@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- ✅ ADD THIS LINE -->
+    <!-- INTERNET PERMISSION -->
     <uses-permission android:name="android.permission.INTERNET" />
 
     <application
@@ -31,10 +31,28 @@
             android:name=".MainActivity"
             android:exported="true"
             android:theme="@style/Theme.LegalChain">
+
+            <!-- LAUNCHER -->
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+
+            <!-- 🔥 ADD THIS DEEPLINK (VERY IMPORTANT) -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- THIS MUST MATCH EMAIL LINK -->
+                <data
+                    android:scheme="https"
+                    android:host="legalchain.app"
+                    android:pathPrefix="/reset" />
+
+            </intent-filter>
+
         </activity>
 
     </application>

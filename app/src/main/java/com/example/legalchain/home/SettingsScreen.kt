@@ -101,21 +101,21 @@ fun SettingsScreen(
                         icon = Icons.Filled.Person,
                         title = "Profile Settings",
                         subtitle = "Manage your profile",
-                        onClick = { onNavigate("/profile/edit") }
+                        onClick = { onNavigate("profile/edit") }
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
                     SettingsRow(
                         icon = Icons.Filled.Security,
                         title = "Security",
                         subtitle = "Password & authentication",
-                        onClick = { onNavigate("/settings/security") }
+                        onClick = { onNavigate("settings/security") }
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
                     SettingsRow(
                         icon = Icons.Filled.Info,
                         title = "Account Activity",
                         subtitle = "Recent sign-ins & sessions",
-                        onClick = { onNavigate("/settings/activity") }
+                        onClick = { onNavigate("settings/activity") }
                     )
                 }
                 Spacer(Modifier.height(16.dp))
@@ -131,7 +131,7 @@ fun SettingsScreen(
                         trailing = {
                             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
                         },
-                        onClick = { onNavigate("/settings/notifications") }
+                        onClick = { onNavigate("settings/notifications") }
                     )
                     HorizontalDivider(color = colors.surfaceVariant)
                     ToggleRow(
@@ -181,7 +181,7 @@ fun SettingsScreen(
                         trailing = {
                             Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Color.Gray)
                         },
-                        onClick = { onNavigate("/settings/privacy") }
+                        onClick = { onNavigate("settings/privacy") }
                     )
                 }
                 Spacer(Modifier.height(16.dp))

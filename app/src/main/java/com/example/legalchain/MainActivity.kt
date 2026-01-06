@@ -6,10 +6,17 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
 import com.example.legalchain.profile.HistoryScreen
 import com.example.legalchain.profile.FavoritesScreen
 import androidx.compose.ui.platform.LocalContext
@@ -28,6 +35,7 @@ import com.example.legalchain.home.SettingsScreen
 import com.example.legalchain.screens.*
 import com.example.legalchain.profile.EditProfileScreen
 import com.example.legalchain.profile.ProfileScreen
+import com.example.legalchain.search.SearchScreen
 import com.example.legalchain.ui.theme.LegalChainTheme
 import kotlinx.coroutines.launch
 import java.io.File
@@ -44,15 +52,24 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         dataStoreManager = DataStoreManager(applicationContext)
 
+
         setContent {
             AppContent(dataStoreManager)
         }
+
+    }
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-private fun AppContent(dataStoreManager: DataStoreManager) {
-
+private fun AppContent(
+    dataStoreManager: DataStoreManager
+)
+ {
     val navController = rememberNavController()
     val scope = rememberCoroutineScope()
     val isDarkMode by dataStoreManager.isDarkModeFlow.collectAsState(false)
@@ -83,8 +100,11 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                 composable("login_lawyer") { LoginScreen(navController, true) }
                 composable("login_client") { LoginScreen(navController, false) }
                 composable("register") { RegisterScreen(navController) }
-                composable("forgot_password") { ForgotPasswordScreen(navController) }
-
+                composable("forgot_password") {
+                    ForgotPasswordScreen(
+                        navController = navController
+                    )
+                }
                 /* ---------- HOME ---------- */
                 composable("home") {
                     HomeScreen(
@@ -102,8 +122,9 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                     AIInsightsScreen(
                         onBack = { navController.popBackStack() },
                         onNavigate = { route ->
-                            if (navController.currentDestination?.route != route) {
-                                navController.navigate(route)
+                            val cleanRoute = route.removePrefix("/")
+                            if (navController.currentDestination?.route != cleanRoute) {
+                                navController.navigate(cleanRoute)
                             }
                         }
                     )
@@ -113,13 +134,13 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                     AIInsightsScreen(
                         onBack = { navController.popBackStack() },
                         onNavigate = { route ->
-                            if (navController.currentDestination?.route != route) {
-                                navController.navigate(route)
+                            val cleanRoute = route.removePrefix("/")
+                            if (navController.currentDestination?.route != cleanRoute) {
+                                navController.navigate(cleanRoute)
                             }
                         }
                     )
                 }
-
                 /* ---------- NOTIFICATIONS ---------- */
                 composable("notifications") {
                     NotificationScreen(
@@ -151,12 +172,13 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                 /* ---------- CASES ---------- */
                 composable("cases") {
                     val role = prefs.getString("userRole", "client") ?: "client"
+                    val isLawyer = role == "lawyer"
 
                     CaseListScreen(
-                        isLawyer = role == "lawyer",
+                        isLawyer = isLawyer,
                         onAddCase = { navController.navigate("cases/add") },
                         onOpenCase = { caseId ->
-                            navController.navigate("cases/$caseId/activity")
+                            navController.navigate("cases/$caseId/details")
                         },
                         onBack = {
                             navController.navigate("home") {
@@ -164,8 +186,9 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                             }
                         },
                         onNavigate = { route ->
-                            if (navController.currentDestination?.route != route) {
-                                navController.navigate(route)
+                            val cleanRoute = route.removePrefix("/")
+                            if (navController.currentDestination?.route != cleanRoute) {
+                                navController.navigate(cleanRoute)
                             }
                         },
                         onBrowseCategories = {
@@ -176,6 +199,7 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
 
                 composable("cases/add") {
                     AddCaseScreen(
+                        existingCaseId = null,
                         onBack = { navController.popBackStack() },
                         onCreate = { navController.navigate("cases") },
                         onCancel = { navController.popBackStack() }
@@ -183,10 +207,45 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                 }
 
                 composable(
-                    "cases/{caseId}/activity",
+                    "cases/edit/{caseId}",
                     arguments = listOf(navArgument("caseId") { type = NavType.StringType })
-                ) {
+                ) { entry ->
+                    val caseId = entry.arguments?.getString("caseId") ?: ""
+                    AddCaseScreen(
+                        existingCaseId = caseId,
+                        onBack = { navController.popBackStack() },
+                        onCreate = {
+                            navController.navigate("cases/$caseId/details") {
+                                popUpTo("cases/$caseId/details") { inclusive = true }
+                            }
+                        },
+                        onCancel = { navController.popBackStack() }
+                    )
+                }
+
+                composable(
+                    "cases/{caseId}/details",
+                    arguments = listOf(navArgument("caseId") { type = NavType.StringType })
+                ) { entry ->
+                    val caseId = entry.arguments?.getString("caseId") ?: ""
+                    CaseDetailsScreen(
+                        caseId = caseId,
+                        onBack = { navController.popBackStack() },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        }
+                    )
+                }
+
+                composable("cases/activity") {
                     CaseActivityScreen(onBack = { navController.popBackStack() })
+                }
+
+                /* ---------- PAYMENTS ---------- */
+                composable("payments") {
+                    PlaceholderScreen(title = "Payments", onBack = { navController.popBackStack() })
                 }
 
                 /* ---------- HEARINGS ---------- */
@@ -221,9 +280,7 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                 composable("cases/categories") {
                     CaseCategoriesScreen(
                         onBack = { navController.popBackStack() },
-                        onCategoryClick = { categoryId ->
-                            navController.navigate("cases?category=$categoryId")
-                        },
+                        onCategoryClick = { /* TODO: filter cases by category id */ },
                         onNavigate = { route ->
                             if (navController.currentDestination?.route != route) {
                                 navController.navigate(route)
@@ -256,7 +313,7 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                             docId = document.id,
                             docType = document.type,
                             documentName = document.name,
-                            pages = 3, // could be enhanced with real page count if available
+                            pages = 3,
                             size = document.size,
                             category = document.category,
                             relatedCase = document.caseName,
@@ -269,11 +326,8 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                             },
                             onDelete = {
                                 DocumentRepository.removeDocument(document.id, ctx)
-                                // Always navigate to docs screen (DocumentListScreen) - guaranteed
-                                // Pop back to docs if it exists, otherwise navigate to it
                                 val popped = navController.popBackStack("docs", false)
                                 if (!popped) {
-                                    // If docs is not in back stack, pop current screen then navigate to docs
                                     navController.popBackStack()
                                     navController.navigate("docs") {
                                         launchSingleTop = true
@@ -284,7 +338,6 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                                 navController.navigate("documents/share/${document.id}")
                             },
                             onAddTag = { updatedTags ->
-                                // Update document tags in repository
                                 DocumentRepository.updateDocumentTags(document.id, updatedTags, ctx)
                             }
                         )
@@ -367,9 +420,14 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
 
                 /* ---------- SEARCH ---------- */
                 composable("search") {
-                    // TODO: Implement SearchScreen
-                    // For now, navigate back
-                    navController.popBackStack()
+                    SearchScreen(
+                        onBack = { navController.popBackStack() },
+                        onNavigate = { route ->
+                            if (navController.currentDestination?.route != route) {
+                                navController.navigate(route)
+                            }
+                        }
+                    )
                 }
 
                 /* ---------- PROFILE ---------- */
@@ -400,8 +458,9 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                             }
                         },
                         onNavigate = { route ->
-                            if (navController.currentDestination?.route != route) {
-                                navController.navigate(route)
+                            val cleanRoute = route.removePrefix("/")
+                            if (navController.currentDestination?.route != cleanRoute) {
+                                navController.navigate(cleanRoute)
                             }
                         },
                         onLogoutConfirm = {
@@ -432,6 +491,7 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                         }
                     )
                 }
+
                 /* ---------- HELP & SUPPORT ---------- */
                 composable("profile/help") {
                     HelpScreen(
@@ -442,6 +502,7 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                         }
                     )
                 }
+
                 /* ---------- PROFILE HISTORY ---------- */
                 composable("profile/history") {
                     HistoryScreen(
@@ -452,28 +513,57 @@ private fun AppContent(dataStoreManager: DataStoreManager) {
                         }
                     )
                 }
+
                 /* ---------- PROFILE FAVORITES ---------- */
                 composable("profile/favorites") {
                     FavoritesScreen(
                         onBack = {
                             navController.navigate("profile") {
-                                    popUpTo("profile") { inclusive = false }
+                                popUpTo("profile") { inclusive = false }
                             }
                         }
                     )
                 }
+
                 /* ---------- CHAT ---------- */
                 composable("chat/lawyer") {
-                    // TODO: Implement ChatScreen for lawyer
-                    navController.popBackStack()
+                    PlaceholderScreen(title = "Client Messages", onBack = { navController.popBackStack() })
                 }
 
                 composable("chat/client") {
-                    // TODO: Implement ChatScreen for client
-                    navController.popBackStack()
+                    PlaceholderScreen(title = "Lawyer Chat", onBack = { navController.popBackStack() })
+                }
+
+                composable("ai/assistant") {
+                    PlaceholderScreen(title = "AI Legal Assistant", onBack = { navController.popBackStack() })
                 }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PlaceholderScreen(title: String, onBack: () -> Unit) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title, fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF004D40), titleContentColor = Color.White, navigationIconContentColor = Color.White)
+            )
+        }
+    ) { padding ->
+        Box(Modifier.padding(padding).fillMaxSize(), contentAlignment = Alignment.Center) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(Icons.Filled.Build, null, modifier = Modifier.size(64.dp), tint = Color.Gray)
+                Spacer(Modifier.height(16.dp))
+                Text("$title Feature Coming Soon", fontWeight = FontWeight.Medium, color = Color.Gray)
+            }
+        }
+    }
+}

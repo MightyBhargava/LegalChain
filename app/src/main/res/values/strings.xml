@@ -1,3 +1,7 @@
 <resources>
     <string name="app_name">LegalChain</string>
+
+    <string name="default_web_client_id">
+        80379951252-obtfprnvo3hps396q173j0fuv1n4t8v2.apps.googleusercontent.com
+    </string>
 </resources>

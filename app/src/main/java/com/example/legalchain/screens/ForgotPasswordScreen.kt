@@ -2,9 +2,13 @@ package com.example.legalchain.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.ui.platform.LocalContext
+import android.content.Context
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Email
@@ -19,6 +23,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.*
+import com.example.legalchain.network.BasicResponse
+import com.example.legalchain.network.ApiClient
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -32,14 +38,18 @@ import androidx.navigation.NavHostController
 private val DarkGreen = Color(0xFF004D40)
 private val SecondaryGreen = Color(0xFF26A69A)
 
-private enum class ForgotStep { EMAIL, SENT, RESET }
+private enum class ForgotStep { EMAIL, OTP }
 
 @Composable
-fun ForgotPasswordScreen(navController: NavHostController? = null) {
+fun ForgotPasswordScreen(
+    navController: NavHostController? = null
+)
+ {
+     var step by remember { mutableStateOf(ForgotStep.EMAIL) }
 
-    var step by remember { mutableStateOf(ForgotStep.EMAIL) }
     var showPassword by remember { mutableStateOf(false) }
-
+    var enteredEmail by remember { mutableStateOf("") }
+     val ctx = LocalContext.current
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -94,8 +104,7 @@ fun ForgotPasswordScreen(navController: NavHostController? = null) {
                 Text(
                     text = when (step) {
                         ForgotStep.EMAIL -> "Forgot Password?"
-                        ForgotStep.SENT -> "Check Your Email"
-                        ForgotStep.RESET -> "Reset Password"
+                        ForgotStep.OTP -> "Reset Password"
                     },
                     color = Color.White,
                     fontSize = 28.sp, // large heading
@@ -122,17 +131,26 @@ fun ForgotPasswordScreen(navController: NavHostController? = null) {
             ) {
 
                 when (step) {
-                    ForgotStep.EMAIL -> EmailStep(onContinue = { step = ForgotStep.SENT })
-                    ForgotStep.SENT -> SentStep(
-                        onTryAnother = { step = ForgotStep.EMAIL },
-                        onReceived = { step = ForgotStep.RESET },
-                        onBackToLogin = { navController?.popBackStack() }
+                    ForgotStep.EMAIL -> EmailStep(
+                        onContinue = { step = ForgotStep.OTP },
+                        onEmailEntered = { enteredEmail = it }
                     )
 
-                    ForgotStep.RESET -> ResetStep(
+                    ForgotStep.OTP -> ResetStep(
+                        email = enteredEmail,
                         showPassword = showPassword,
                         onShowPasswordChange = { showPassword = it },
-                        onResetDone = { navController?.popBackStack() }
+                        onResetDone = {
+                            val role = ctx
+                                .getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
+                                .getString("userRole", "client")
+
+                            if (role == "lawyer") {
+                                navController?.navigate("login_lawyer")
+                            } else {
+                                navController?.navigate("login_client")
+                            }
+                        }
                     )
                 }
             }
@@ -141,7 +159,10 @@ fun ForgotPasswordScreen(navController: NavHostController? = null) {
 }
 
 @Composable
-private fun EmailStep(onContinue: () -> Unit) {
+private fun EmailStep(
+    onContinue: () -> Unit,
+    onEmailEntered: (String) -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -197,9 +218,32 @@ private fun EmailStep(onContinue: () -> Unit) {
         )
 
         Spacer(modifier = Modifier.height(20.dp))
-
         Button(
-            onClick = onContinue,
+            onClick = {
+                ApiClient.apiService.forgotPassword(
+                    type = "email",
+                    value = email
+                )
+                    .enqueue(object : retrofit2.Callback<BasicResponse> {
+
+                        override fun onResponse(
+                            call: retrofit2.Call<BasicResponse>,
+                            response: retrofit2.Response<BasicResponse>
+                        ) {
+                            if (response.body()?.status == "success") {
+                                onEmailEntered(email)   // ✅ SAVE REAL EMAIL
+                                onContinue()
+                            }
+                        }
+
+                        override fun onFailure(
+                            call: retrofit2.Call<BasicResponse>,
+                            t: Throwable
+                        ) {
+                            // ignore for now
+                        }
+                    })
+            },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(52.dp),
@@ -209,7 +253,7 @@ private fun EmailStep(onContinue: () -> Unit) {
             ),
             shape = RoundedCornerShape(24.dp)
         ) {
-            Text("Send Reset Link", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Send OTP", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -222,118 +266,19 @@ private fun EmailStep(onContinue: () -> Unit) {
         )
     }
 }
-
-@Composable
-private fun SentStep(
-    onTryAnother: () -> Unit,
-    onReceived: () -> Unit,
-    onBackToLogin: () -> Unit
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Box(
-            modifier = Modifier
-                .size(96.dp)
-                .background(SecondaryGreen.copy(alpha = 0.12f), RoundedCornerShape(48.dp)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.CheckCircle,
-                contentDescription = null,
-                tint = SecondaryGreen,
-                modifier = Modifier.size(40.dp) // increased icon size
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            color = Color(0xFFF3F4F6)
-        ) {
-            Column(
-                modifier = Modifier.padding(12.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "We sent a reset link to",
-                    fontSize = 15.sp,
-                    color = Color(0xFF6B7280)
-                )
-                Text(
-                    text = "user@example.com",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFF111827)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "Didn't receive the email? Check your spam folder or try another email.",
-            fontSize = 15.sp,
-            color = Color(0xFF4B5563),
-            textAlign = TextAlign.Center
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Button(
-            onClick = onReceived,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = DarkGreen,
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Text("I've Received the Link", fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Button(
-            onClick = onBackToLogin,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color.White,
-                contentColor = DarkGreen
-            ),
-            shape = RoundedCornerShape(24.dp)
-        ) {
-            Text("Back to Login", fontSize = 15.sp, fontWeight = FontWeight.Medium)
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Try another email",
-            fontSize = 15.sp,
-            color = DarkGreen,
-            modifier = Modifier.clickable { onTryAnother() },
-            textAlign = TextAlign.Center
-        )
-    }
-}
-
 @Composable
 private fun ResetStep(
+    email: String,
     showPassword: Boolean,
     onShowPasswordChange: (Boolean) -> Unit,
     onResetDone: () -> Unit
-) {
+)
+{
+    // ✅ SUCCESS STATE (MUST BE INSIDE COMPOSABLE)
+    var otp by remember { mutableStateOf("") }
+
+    var showSuccessDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -351,7 +296,7 @@ private fun ResetStep(
                 imageVector = Icons.Filled.Key,
                 contentDescription = null,
                 tint = DarkGreen,
-                modifier = Modifier.size(40.dp) // increased icon size
+                modifier = Modifier.size(40.dp)
             )
         }
 
@@ -367,67 +312,119 @@ private fun ResetStep(
 
         var newPassword by remember { mutableStateOf("") }
         var confirmPassword by remember { mutableStateOf("") }
+// 🔢 OTP FIELD (ADD THIS)
+        OutlinedTextField(
+            value = otp,
+            onValueChange = { otp = it },
+            label = { Text("OTP") },
+            placeholder = { Text("Enter 6-digit OTP") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            shape = RoundedCornerShape(16.dp),
+            colors = fieldColors
+        )
 
+        Spacer(modifier = Modifier.height(12.dp))
+        // 🔐 NEW PASSWORD
         OutlinedTextField(
             value = newPassword,
             onValueChange = { newPassword = it },
-            label = { Text("New Password", fontSize = 16.sp, fontWeight = FontWeight.Medium) },
-            placeholder = { Text("Enter new password", fontSize = 15.sp) },
+            label = { Text("New Password") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = fieldColors,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            visualTransformation =
+                if (showPassword) VisualTransformation.None
+                else PasswordVisualTransformation()
         )
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        // 🔐 CONFIRM PASSWORD
         OutlinedTextField(
             value = confirmPassword,
             onValueChange = { confirmPassword = it },
-            label = { Text("Confirm Password", fontSize = 16.sp, fontWeight = FontWeight.Medium) },
-            placeholder = { Text("Confirm new password", fontSize = 15.sp) },
+            label = { Text("Confirm Password") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             colors = fieldColors,
-            shape = RoundedCornerShape(16.dp)
+            shape = RoundedCornerShape(16.dp),
+            visualTransformation =
+                if (showPassword) VisualTransformation.None
+                else PasswordVisualTransformation()
         )
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        Row(
-            verticalAlignment = Alignment.CenterVertically
-        ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
             Checkbox(
                 checked = showPassword,
                 onCheckedChange = onShowPasswordChange,
                 colors = CheckboxDefaults.colors(
                     checkedColor = DarkGreen,
-                    uncheckedColor = Color(0xFF9CA3AF),
-                    checkmarkColor = Color.White
+                    uncheckedColor = Color.Gray
                 )
             )
             Spacer(modifier = Modifier.width(6.dp))
-            Text(
-                text = "Show passwords",
-                fontSize = 15.sp,
-                color = Color(0xFF4B5563)
-            )
+            Text("Show passwords")
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // 🔁 RESET BUTTON
         Button(
-            onClick = onResetDone,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = DarkGreen,
-                contentColor = Color.White
-            ),
-            shape = RoundedCornerShape(24.dp)
+            onClick = {
+                if (newPassword == confirmPassword && otp.isNotBlank()) {
+                    ApiClient.apiService.resetPassword(
+                        type = "email",
+                        value = email,
+                        otp = otp,
+                        password = newPassword
+                    )
+                        .enqueue(object : retrofit2.Callback<BasicResponse> {
+
+                            override fun onResponse(
+                                call: retrofit2.Call<BasicResponse>,
+                                response: retrofit2.Response<BasicResponse>
+                            ) {
+                                val body = response.body()
+                                if (body?.status == "success") {
+                                    showSuccessDialog = true
+                                } else {
+                                    // ❌ OTP invalid / expired
+                                    // You can show a toast or text error
+                                }
+                            }
+
+                            override fun onFailure(
+                                call: retrofit2.Call<BasicResponse>,
+                                t: Throwable
+                            ) {}
+                        })
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(52.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = DarkGreen)
         ) {
-            Text("Reset Password", fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("Reset Password", color = Color.White)
         }
+    }
+
+    // ✅ SUCCESS DIALOG
+    if (showSuccessDialog) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Password Changed", fontWeight = FontWeight.Bold) },
+            text = { Text("Your password has been updated successfully.") },
+            confirmButton = {
+                Button(onClick = {
+                    showSuccessDialog = false
+                    onResetDone()
+                }) {
+                    Text("Go to Login")
+                }
+            }
+        )
     }
 }

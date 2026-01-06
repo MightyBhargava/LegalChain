@@ -1,11 +1,26 @@
 package com.example.legalchain.screens
 
 import android.content.Context
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import com.example.legalchain.auth.GoogleAuthHelper
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.material3.Divider
 import androidx.compose.foundation.layout.*
+import android.app.Activity
+import androidx.compose.ui.res.painterResource
+import com.example.legalchain.R
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import com.example.legalchain.network.ApiClient
+import com.example.legalchain.network.ApiService
+import com.example.legalchain.network.LoginResponse
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Lock
@@ -48,18 +63,95 @@ fun LoginScreen(
     isLawyer: Boolean = false
 ) {
     val context = LocalContext.current
+    val activity = context as Activity
+
+    val googleAuthHelper = remember {
+        GoogleAuthHelper(activity)
+    }
+
+    val googleLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            googleAuthHelper.handleSignInResult(
+                data = result.data,
+                onSuccess = { email, uid, _ ->
+
+                    val api = ApiClient.apiService
+
+                    val role = if (isLawyer) "lawyer" else "client"
+                    val fullName = email.substringBefore("@")
+
+                    api.googleLogin(
+                        email = email,
+                        googleUid = uid,
+                        fullName = fullName,
+                        role = role
+                    ).enqueue(object : retrofit2.Callback<LoginResponse> {
+
+                        override fun onResponse(
+                            call: retrofit2.Call<LoginResponse>,
+                            response: retrofit2.Response<LoginResponse>
+                        ) {
+                            if (response.isSuccessful && response.body()?.status == "success") {
+
+                                val user = response.body()!!.user!!
+
+                                val prefs = context.getSharedPreferences(
+                                    "app_prefs",
+                                    Context.MODE_PRIVATE
+                                )
+
+                                prefs.edit()
+                                    .putString("userId", user.id)
+                                    .putString("userRole", user.role)
+                                    .putString("userName", user.fullName)
+                                    .putString("userEmail", user.email)
+                                    .apply()
+
+                                navController?.navigate("home") {
+                                    popUpTo("login") { inclusive = true }
+                                }
+
+                            } else {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    response.body()?.message ?: "Google login failed",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+
+                        override fun onFailure(
+                            call: retrofit2.Call<LoginResponse>,
+                            t: Throwable
+                        ) {
+                            android.widget.Toast.makeText(
+                                context,
+                                "Network error",
+                                android.widget.Toast.LENGTH_SHORT
+                            ).show()
+                        }
+                    })
+                },
+                onError = { error ->
+                    android.widget.Toast.makeText(
+                        context,
+                        error,
+                        android.widget.Toast.LENGTH_LONG
+                    ).show()
+                }
+            )
+        }
+    }
     val headerColor = DarkGreenLogin   // always dark green
 
     var loginMethod by remember { mutableStateOf(LoginMethod.EMAIL) }
     var showPassword by remember { mutableStateOf(false) }
 
-    val demoEmail = if (isLawyer) "lawyer_demo@legalchain.com" else "client_demo@legalchain.com"
-    val demoPassword = if (isLawyer) "lawyer123" else "client123"
-
-    var email by remember { mutableStateOf(demoEmail) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
     var mobile by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf(demoPassword) }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -317,15 +409,70 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            // --- Save user role into SharedPreferences so HomeScreen can read it ---
-                            val prefs = context.getSharedPreferences("app_prefs", Context.MODE_PRIVATE)
-                            prefs.edit().putString("userRole", if (isLawyer) "lawyer" else "client").apply()
 
-                            // --- Navigate to Home (replace "home" with your actual home route if different) ---
-                            navController?.navigate("home") {
-                                // optional: clear login from back stack
-                                popUpTo("login") { inclusive = true }
+                            if (email.isBlank() || password.isBlank()) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "Email and Password required",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                                return@Button
                             }
+
+                            val role = if (isLawyer) "lawyer" else "client"
+                            val api = ApiClient.apiService
+                            api.login(
+                                type = "email",
+                                value = email,
+                                password = password
+                            )
+                                .enqueue(object : retrofit2.Callback<LoginResponse> {
+
+                                    override fun onResponse(
+                                        call: retrofit2.Call<LoginResponse>,
+                                        response: retrofit2.Response<LoginResponse>
+                                    ) {
+                                        if (response.isSuccessful && response.body()?.status == "success") {
+
+                                            val user = response.body()!!.user!!
+
+                                            val prefs = context.getSharedPreferences(
+                                                "app_prefs",
+                                                Context.MODE_PRIVATE
+                                            )
+
+                                            prefs.edit()
+                                                .putString("userId", user.id)
+                                                .putString("userRole", user.role)
+                                                .putString("userName", user.fullName)
+                                                .putString("userEmail", user.email)
+                                                .putString("document", user.document)
+                                                .apply()
+
+                                            navController?.navigate("home") {
+                                                popUpTo("login") { inclusive = true }
+                                            }
+
+                                        } else {
+                                            android.widget.Toast.makeText(
+                                                context,
+                                                response.body()?.message ?: "Invalid login",
+                                                android.widget.Toast.LENGTH_LONG
+                                            ).show()
+                                        }
+                                    }
+
+                                    override fun onFailure(
+                                        call: retrofit2.Call<LoginResponse>,
+                                        t: Throwable
+                                    ) {
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            "Network error",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                })
                         },
                         modifier = Modifier
                             .fillMaxWidth()
@@ -337,11 +484,12 @@ fun LoginScreen(
                         )
                     ) {
                         Text(
-                            text = "Sign In as ${if (isLawyer) "Lawyer" else "Client"}",
+                            text = "Sign In",
                             fontSize = 18.sp,
                             fontWeight = FontWeight.SemiBold
                         )
                     }
+                     Spacer(modifier = Modifier.height(14.dp))
                 }
 
                 Spacer(modifier = Modifier.height(18.dp))
@@ -367,6 +515,63 @@ fun LoginScreen(
                             navController?.navigate("register")
                         }
                 )
+                Spacer(modifier = Modifier.height(16.dp))
+
+// ---- OR divider ----
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Divider(modifier = Modifier.weight(1f))
+                    Text(
+                        text = " OR ",
+                        color = Color.Gray,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 8.dp)
+                    )
+                    Divider(modifier = Modifier.weight(1f))
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+// ---- Sign up with Google ----
+                Button(
+                    onClick = {
+                        googleLauncher.launch(
+                            googleAuthHelper.getSignInIntent()
+                        )
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    shape = RoundedCornerShape(28.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    border = BorderStroke(1.dp, Color(0xFFE0E0E0))
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_google),
+                            contentDescription = "Google",
+                            modifier = Modifier.size(22.dp),
+                            tint = Color.Unspecified
+                        )
+
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        Text(
+                            text = "Sign up with Google",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
             }
         }
     }

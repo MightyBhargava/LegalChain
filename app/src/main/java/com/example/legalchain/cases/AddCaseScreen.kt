@@ -28,25 +28,28 @@ private val CardWhite = Color.White
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddCaseScreen(
+    existingCaseId: String? = null,
     onBack: () -> Unit = {},
     onCreate: () -> Unit = {},
     onCancel: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
-    var caseTitle by remember { mutableStateOf("") }
-    var caseNumber by remember { mutableStateOf("") }
+    val existingCase = remember(existingCaseId) {
+        existingCaseId?.let { CaseRepository.getCase(it) }
+    }
+
+    var caseTitle by remember { mutableStateOf(existingCase?.title ?: "") }
+    var caseNumber by remember { mutableStateOf(existingCase?.caseNumber ?: "") }
     val initialTypes = listOf(
-        "Civil Case", "Criminal Case", "Corporate Case", "Family Case",
-        "Property Case", "Contract Dispute", "Intellectual Property",
-        "Labour Case", "Tax Case", "Banking/Finance Case", "Cyber Crime",
-        "Consumer Case", "Custom Type"
+        "Civil", "Criminal", "Corporate", "Family",
+        "Property", "Contract", "IPR", "Labour", "Tax", "Banking", "Cyber", "Consumer", "Custom Type"
     )
     val caseTypes = remember { mutableStateListOf<String>().apply { addAll(initialTypes) } }
 
-    var caseType by remember { mutableStateOf("") }
+    var caseType by remember { mutableStateOf(existingCase?.type ?: "") }
     var customCaseType by remember { mutableStateOf("") }
-    var caseDescription by remember { mutableStateOf("") }
+    var caseDescription by remember { mutableStateOf(existingCase?.description ?: "") }
 
     var stateText by remember { mutableStateOf("") }
     var district by remember { mutableStateOf("") }
@@ -54,17 +57,16 @@ fun AddCaseScreen(
     var courtType by remember { mutableStateOf("") }
     val courts = listOf("High Court", "District Court", "Sessions Court", "Family Court", "NCLT", "Supreme Court")
 
-    var courtName by remember { mutableStateOf("") }
-    var filingDate by remember { mutableStateOf("") }
+    var courtName by remember { mutableStateOf(existingCase?.court ?: "") }
+    var filingDate by remember { mutableStateOf(existingCase?.filingDate ?: "") }
 
-    var petitioner by remember { mutableStateOf("") }
-    var respondent by remember { mutableStateOf("") }
-    var assignedLawyer by remember { mutableStateOf("") }
+    var petitioner by remember { mutableStateOf(existingCase?.petitioner ?: "") }
+    var respondent by remember { mutableStateOf(existingCase?.respondent ?: "") }
+    var assignedLawyer by remember { mutableStateOf(existingCase?.advocate ?: "") }
 
     var showCaseTypeDropdown by remember { mutableStateOf(false) }
     var showCourtDropdown by remember { mutableStateOf(false) }
 
-    // DatePicker
     val calendar = Calendar.getInstance()
     val year = calendar.get(Calendar.YEAR)
     val month = calendar.get(Calendar.MONTH)
@@ -75,11 +77,19 @@ fun AddCaseScreen(
         filingDate = "${y}-$mm-$dd"
     }, year, month, day)
 
+    val isEditMode = existingCase != null
+    val primaryButtonText = if (isEditMode) "Save Changes" else "Create Case"
+
     Surface(modifier = Modifier.fillMaxSize(), color = SurfaceGreen) {
         Column {
             TopAppBar(
                 title = {
-                    Text("Add New Case", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
+                    Text(
+                        text = if (isEditMode) "Edit Case" else "Add New Case",
+                        fontSize = 20.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = DarkGreen
+                    )
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -89,12 +99,18 @@ fun AddCaseScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = CardWhite)
             )
 
-            Column(modifier = Modifier
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp)
+            ) {
 
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
+                // BASIC INFO
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite)
+                ) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Basic Information", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkGreen)
                         Spacer(Modifier.height(12.dp))
@@ -131,7 +147,9 @@ fun AddCaseScreen(
                                 label = { Text("Case Type *", fontWeight = FontWeight.SemiBold, fontSize = 15.sp) },
                                 leadingIcon = { Icon(Icons.AutoMirrored.Filled.Assignment, contentDescription = null, tint = DarkGreen) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCaseTypeDropdown) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
                             )
 
                             ExposedDropdownMenu(
@@ -139,10 +157,13 @@ fun AddCaseScreen(
                                 onDismissRequest = { showCaseTypeDropdown = false }
                             ) {
                                 caseTypes.forEach { t ->
-                                    DropdownMenuItem(text = { Text(t, fontWeight = FontWeight.Medium, fontSize = 15.sp) }, onClick = {
-                                        caseType = t
-                                        showCaseTypeDropdown = false
-                                    })
+                                    DropdownMenuItem(
+                                        text = { Text(t, fontWeight = FontWeight.Medium, fontSize = 15.sp) },
+                                        onClick = {
+                                            caseType = t
+                                            showCaseTypeDropdown = false
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -163,14 +184,20 @@ fun AddCaseScreen(
                             value = caseDescription,
                             onValueChange = { caseDescription = it },
                             label = { Text("Case Description", fontWeight = FontWeight.SemiBold) },
-                            modifier = Modifier.fillMaxWidth().height(120.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(120.dp)
                         )
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
+                // COURT DETAILS
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite)
+                ) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Court Details", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkGreen)
                         Spacer(Modifier.height(12.dp))
@@ -203,15 +230,23 @@ fun AddCaseScreen(
                                 label = { Text("Court Type", fontWeight = FontWeight.SemiBold) },
                                 leadingIcon = { Icon(Icons.Filled.BusinessCenter, contentDescription = null, tint = DarkGreen) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showCourtDropdown) },
-                                modifier = Modifier.fillMaxWidth().menuAnchor()
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .menuAnchor()
                             )
 
-                            ExposedDropdownMenu(expanded = showCourtDropdown, onDismissRequest = { showCourtDropdown = false }) {
+                            ExposedDropdownMenu(
+                                expanded = showCourtDropdown,
+                                onDismissRequest = { showCourtDropdown = false }
+                            ) {
                                 courts.forEach { c ->
-                                    DropdownMenuItem(text = { Text(c, fontSize = 15.sp) }, onClick = {
-                                        courtType = c
-                                        showCourtDropdown = false
-                                    })
+                                    DropdownMenuItem(
+                                        text = { Text(c, fontSize = 15.sp) },
+                                        onClick = {
+                                            courtType = c
+                                            showCourtDropdown = false
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -239,14 +274,20 @@ fun AddCaseScreen(
                                     Icon(Icons.Filled.CalendarToday, contentDescription = "Pick date", tint = DarkGreen)
                                 }
                             },
-                            modifier = Modifier.fillMaxWidth().height(60.dp)
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(60.dp)
                         )
                     }
                 }
 
                 Spacer(Modifier.height(16.dp))
 
-                Card(modifier = Modifier.fillMaxWidth(), colors = CardDefaults.cardColors(containerColor = CardWhite)) {
+                // PARTIES
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = CardWhite)
+                ) {
                     Column(Modifier.padding(16.dp)) {
                         Text("Parties & Representation", fontWeight = FontWeight.Bold, fontSize = 18.sp, color = DarkGreen)
                         Spacer(Modifier.height(12.dp))
@@ -284,33 +325,80 @@ fun AddCaseScreen(
                 Spacer(Modifier.height(24.dp))
 
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f).height(56.dp)) {
+                    OutlinedButton(
+                        onClick = onCancel,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp)
+                    ) {
                         Text("Cancel", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = DarkGreen)
                     }
 
-                    Button(onClick = {
-                        if (caseNumber.isBlank()) {
-                            Toast.makeText(context, "Case Number required", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        if (caseType.isBlank()) {
-                            Toast.makeText(context, "Select Case Type", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        if (caseType == "Custom Type" && customCaseType.isNotBlank()) {
-                            if (!caseTypes.contains(customCaseType)) {
-                                caseTypes.add(caseTypes.size - 1, customCaseType)
+                    Button(
+                        onClick = {
+                            if (caseNumber.isBlank()) {
+                                Toast.makeText(context, "Case Number required", Toast.LENGTH_SHORT).show()
+                                return@Button
                             }
-                            caseType = customCaseType
-                        }
-                        onCreate()
-                        Toast.makeText(context, "Case created", Toast.LENGTH_SHORT).show()
-                    }, modifier = Modifier.weight(1f).height(56.dp), colors = ButtonDefaults.buttonColors(containerColor = DarkGreen)) {
-                        Text("Create Case", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                            if (caseType.isBlank()) {
+                                Toast.makeText(context, "Select Case Type", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            val finalType = if (caseType == "Custom Type" && customCaseType.isNotBlank()) {
+                                if (!caseTypes.contains(customCaseType)) {
+                                    caseTypes.add(caseTypes.size - 1, customCaseType)
+                                }
+                                customCaseType
+                            } else caseType
+
+                            if (isEditMode && existingCase != null) {
+                                val updatedCase = existingCase.copy(
+                                    title = caseTitle.ifBlank { caseNumber },
+                                    caseNumber = caseNumber,
+                                    type = finalType,
+                                    court = if (courtName.isNotBlank()) courtName else courtType,
+                                    filingDate = filingDate,
+                                    description = caseDescription,
+                                    petitioner = petitioner,
+                                    respondent = respondent,
+                                    advocate = assignedLawyer
+                                )
+                                CaseRepository.updateCase(updatedCase)
+                                Toast.makeText(context, "Case updated", Toast.LENGTH_SHORT).show()
+                            } else {
+                                val newCase = CaseModel(
+                                    id = System.currentTimeMillis().toString(),
+                                    title = caseTitle.ifBlank { caseNumber },
+                                    caseNumber = caseNumber,
+                                    type = finalType,
+                                    status = "active",
+                                    court = if (courtName.isNotBlank()) courtName else courtType,
+                                    judge = "",
+                                    filingDate = filingDate,
+                                    nextHearing = "",
+                                    hearingTime = "",
+                                    courtRoom = "",
+                                    description = caseDescription,
+                                    petitioner = petitioner,
+                                    respondent = respondent,
+                                    advocate = assignedLawyer
+                                )
+                                CaseRepository.addCase(newCase)
+                                Toast.makeText(context, "Case created", Toast.LENGTH_SHORT).show()
+                            }
+
+                            onCreate()
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = DarkGreen)
+                    ) {
+                        Text(primaryButtonText, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
                 }
 
-                Spacer(Modifier.height(24.dp))
+                Spacer(Modifier.height(16.dp))
             }
         }
     }
