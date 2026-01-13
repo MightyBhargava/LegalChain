@@ -2,19 +2,19 @@ plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    id("com.google.gms.google-services")   // ✅ REQUIRED
 }
 
 android {
-    namespace = "com.example.legalchain"
-    compileSdk = 34
+    namespace = "com.simats.legalchain"
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.example.legalchain"
         minSdk = 23
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -65,18 +65,13 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
     implementation("androidx.compose.material3:material3:1.2.1")
     implementation("androidx.compose.material:material-icons-extended:1.5.4")
+
     debugImplementation("androidx.compose.ui:ui-tooling:1.5.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.5.4")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.4")
 
     // -------- NAVIGATION --------
     implementation("androidx.navigation:navigation-compose:2.7.7")
-
-    // -------- FIREBASE + GOOGLE SIGN-IN --------
-    implementation(platform("com.google.firebase:firebase-bom:34.7.0"))
-    implementation("com.google.firebase:firebase-auth")
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.android.gms:play-services-auth:21.0.0")
 
     // -------- NETWORK --------
     implementation("com.squareup.retrofit2:retrofit:2.9.0")
@@ -85,6 +80,11 @@ dependencies {
 
     // -------- DATASTORE --------
     implementation("androidx.datastore:datastore-preferences:1.1.0")
+    // Google Play Billing (REQUIRED)
+    implementation("com.android.billingclient:billing:6.1.0")
+// Jetpack Compose
+    implementation("androidx.activity:activity-compose:1.8.2")
+    implementation("androidx.compose.material3:material3:1.2.1")
 
     // -------- TEST --------
     testImplementation("junit:junit:4.13.2")
