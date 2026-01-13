@@ -49,21 +49,38 @@ fun SubscriptionScreen(
         billingClient = BillingClient.newBuilder(context)
             .enablePendingPurchases()
             .setListener { result, purchases ->
-                if (result.responseCode == BillingClient.BillingResponseCode.OK) {
-                    purchases?.forEach { purchase ->
-                        if (
-                            purchase.purchaseState == Purchase.PurchaseState.PURCHASED &&
-                            !purchase.isAcknowledged
-                        ) {
-                            billingClient?.acknowledgePurchase(
-                                AcknowledgePurchaseParams.newBuilder()
-                                    .setPurchaseToken(purchase.purchaseToken)
-                                    .build()
-                            ) {
-                                saveSubscription(context)
-                                onSubscribed()
+                when (result.responseCode) {
+
+                    BillingClient.BillingResponseCode.OK -> {
+                        purchases?.forEach { purchase ->
+                            if (purchase.purchaseState == Purchase.PurchaseState.PURCHASED) {
+                                if (!purchase.isAcknowledged) {
+                                    billingClient?.acknowledgePurchase(
+                                        AcknowledgePurchaseParams.newBuilder()
+                                            .setPurchaseToken(purchase.purchaseToken)
+                                            .build()
+                                    ) {
+                                        saveSubscription(context)
+                                        onSubscribed()
+                                    }
+                                } else {
+                                    saveSubscription(context)
+                                    onSubscribed()
+                                }
                             }
                         }
+                    }
+
+                    BillingClient.BillingResponseCode.USER_CANCELED -> {
+                        Toast.makeText(context, "Purchase canceled", Toast.LENGTH_SHORT).show()
+                    }
+
+                    else -> {
+                        Toast.makeText(
+                            context,
+                            "Purchase failed: ${result.debugMessage}",
+                            Toast.LENGTH_LONG
+                        ).show()
                     }
                 }
             }
@@ -137,20 +154,41 @@ fun SubscriptionScreen(
                                 contentColor = Color.White
                             ),
                             onClick = {
-                                val offer =
-                                    productDetails?.subscriptionOfferDetails?.firstOrNull()
-                                if (activity != null && productDetails != null && offer != null) {
-                                    val params = BillingFlowParams.newBuilder()
-                                        .setProductDetailsParamsList(
-                                            listOf(
-                                                BillingFlowParams.ProductDetailsParams.newBuilder()
-                                                    .setProductDetails(productDetails!!)
-                                                    .setOfferToken(offer.offerToken)
-                                                    .build()
-                                            )
-                                        ).build()
-                                    billingClient?.launchBillingFlow(activity, params)
+                                if (billingClient == null) {
+                                    Toast.makeText(context, "Billing not ready. Please try again.", Toast.LENGTH_SHORT).show()
+                                    return@Button
                                 }
+
+                                if (productDetails == null) {
+                                    Toast.makeText(context, "Subscription is loading. Please wait.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                val offer = productDetails?.subscriptionOfferDetails?.firstOrNull()
+                                if (offer == null) {
+                                    Toast.makeText(context, "No subscription plan available.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                if (activity == null) {
+                                    Toast.makeText(context, "Unable to start billing flow.", Toast.LENGTH_SHORT).show()
+                                    return@Button
+                                }
+
+                                Toast.makeText(context, "Opening Google Play…", Toast.LENGTH_SHORT).show()
+
+                                val params = BillingFlowParams.newBuilder()
+                                    .setProductDetailsParamsList(
+                                        listOf(
+                                            BillingFlowParams.ProductDetailsParams.newBuilder()
+                                                .setProductDetails(productDetails!!)
+                                                .setOfferToken(offer.offerToken)
+                                                .build()
+                                        )
+                                    )
+                                    .build()
+
+                                billingClient?.launchBillingFlow(activity, params)
                             }
                         ) {
                             Text("Upgrade to Premium", fontWeight = FontWeight.Bold)
